@@ -1,0 +1,217 @@
+// 服務層：優先呼叫真實後端，後端沒開時自動改用前端內建示範資料。
+import client from "./client";
+import { MOCK_ROUTES, MOCK_USERS } from "../data/mockData";
+
+// 部署示範模式：設 VITE_DEMO_ONLY=true 時，前端完全用內建資料，不打後端
+const DEMO_ONLY = import.meta.env.VITE_DEMO_ONLY === "true";
+
+// ---------- 後端在線時走這裡；連不到時 fallback ----------
+async function withFallbackAny(real, mock) {
+  if (DEMO_ONLY) return mock();
+  try { return await real(); }
+  catch (e) { if (e.status && e.status >= 400 && e.status < 500 && e.status !== 404) throw e; return mock(); }
+}
+
+async function withFallback(real, mock) {
+  if (DEMO_ONLY) return mock();
+  try {
+    return await real();
+  } catch (e) {
+    // 後端沒開、逾時、或回 5xx（含 Vite 代理連不到後端時的 500）→ 改用內建示範資料
+    if (e.isNetwork || !e.status || e.status >= 500) return mock();
+    throw e;                          // 後端正常回應的真錯誤（如 401 帳密錯）→ 照常拋出
+  }
+}
+
+// ---------- 示範模式用的 localStorage 小型資料庫 ----------
+const LS = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+};
+function mockUsers() { return [...MOCK_USERS, ...LS.get("voyago_mock_users", [])]; }
+function currentMockUser() { return LS.get("voyago_mock_current", null); }
+function makeToken(email) { return "mock." + btoa(unescape(encodeURIComponent(email))); }
+function publicUser(u) { return { id: u.id, name: u.name, email: u.email, role: u.role, provider: u.provider, avatarUrl: u.avatarUrl }; }
+
+function sortRoutes(list, sort) {
+  const a = [...list];
+  switch (sort) {
+    case "price-asc": return a.sort((x, y) => x.price - y.price);
+    case "price-desc": return a.sort((x, y) => y.price - x.price);
+    case "rating": return a.sort((x, y) => y.rating - x.rating);
+    case "days": return a.sort((x, y) => x.days - y.days);
+    default: return a.sort((x, y) => (y.featured - x.featured) || (y.reviews - x.reviews));
+  }
+}
+
+function decodeJwt(token) {
+  try {
+    const payload = token.split(".")[1];
+    return JSON.parse(decodeURIComponent(escape(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))));
+  } catch { return {}; }
+}
+
+// =================== 對外 API ===================
+
+export const api = {
+  // 行程
+  getRoutes({ q = "", tag = "", sort = "featured" } = {}) {
+    return withFallback(
+      async () => (await client.get("/routes", { params: { q, tag, sort } })).data,
+      () => {
+        let list = MOCK_ROUTES.filter((r) => {
+          const okQ = !q || [r.name, r.country, r.location, r.summary].some((f) => f.toLowerCase().includes(q.toLowerCase()));
+          const okTag = !tag || r.tags.includes(tag);
+          return okQ && okTag;
+        });
+        return sortRoutes(list, sort);
+      }
+    );
+  },
+
+  getRoute(slug) {
+    return withFallback(
+      async () => (await client.get(`/routes/${slug}`)).data,
+      () => {
+        const r = MOCK_ROUTES.find((x) => x.slug === slug);
+        if (!r) { const e = new Error("找不到此行程"); e.status = 404; throw e; }
+        return r;
+      }
+    );
+  },
+
+  // 驗證
+  login(email, password) {
+    return withFallback(
+      async () => (await client.post("/auth/login", { email, password })).data,
+      () => {
+        const u = mockUsers().find((x) => x.email === email && x.password === password);
+        if (!u) throw new Error("帳號或密碼錯誤");
+        LS.set("voyago_mock_current", publicUser(u));
+        return { token: makeToken(email), user: publicUser(u) };
+      }
+    );
+  },
+
+  register(payload) {
+    return withFallback(
+      async () => (await client.post("/auth/register", payload)).data,
+      () => {
+        if (mockUsers().some((x) => x.email === payload.email)) throw new Error("此 Email 已被註冊");
+        const users = LS.get("voyago_mock_users", []);
+        const u = { id: Date.now(), name: payload.name, email: payload.email, password: payload.password,
+                    role: "MEMBER", provider: "LOCAL", avatarUrl: null };
+        users.push(u); LS.set("voyago_mock_users", users);
+        LS.set("voyago_mock_current", publicUser(u));
+        return { token: makeToken(u.email), user: publicUser(u) };
+      }
+    );
+  },
+
+  // Google 登入：有後端就驗證；沒後端就用前端解碼憑證（示範用）
+  googleLogin(credential) {
+    return withFallback(
+      async () => (await client.post("/auth/google", { credential })).data,
+      () => {
+        const p = decodeJwt(credential);
+        const u = { id: Date.now(), name: p.name || p.email || "Google 使用者", email: p.email || "google@voyago.com",
+                    role: "MEMBER", provider: "GOOGLE", avatarUrl: p.picture || null };
+        LS.set("voyago_mock_current", u);
+        return { token: makeToken(u.email), user: u };
+      }
+    );
+  },
+
+  // 純示範用：沒有設定 Google Client ID 時的「一鍵示範登入」
+  demoGoogleLogin() {
+    const u = { id: 999, name: "Google 體驗者", email: "google.demo@voyago.com",
+                role: "MEMBER", provider: "GOOGLE",
+                avatarUrl: "https://lh3.googleusercontent.com/a/default-user=s96-c" };
+    LS.set("voyago_mock_current", u);
+    return { token: makeToken(u.email), user: u };
+  },
+
+  me() {
+    return withFallback(
+      async () => (await client.get("/auth/me")).data.user,
+      () => currentMockUser()
+    );
+  },
+
+  // 訂單
+  getBookings() {
+    return withFallback(
+      async () => (await client.get("/bookings")).data,
+      () => LS.get("voyago_mock_bookings", [])
+    );
+  },
+
+  createBooking({ routeId, people, travelDate }) {
+    return withFallback(
+      async () => (await client.post("/bookings", { routeId, people, travelDate })).data,
+      () => {
+        const route = MOCK_ROUTES.find((r) => r.id === routeId);
+        const booking = { id: Date.now(), people, travelDate, status: "CONFIRMED",
+                          totalPrice: route.price * people, route };
+        const list = LS.get("voyago_mock_bookings", []);
+        list.unshift(booking); LS.set("voyago_mock_bookings", list);
+        return booking;
+      }
+    );
+  },
+
+  // 客服
+  getChat() {
+    return withFallback(
+      async () => (await client.get("/chat")).data,
+      () => LS.get("voyago_mock_messages", [])
+    );
+  },
+
+  sendChat(content) {
+    const AUTO = ["感謝您的訊息！客服專員會盡快為您處理 😊", "好的，已收到您的需求，我們為您查詢後回覆。",
+                  "這個行程目前還有名額喔，需要我幫您保留嗎？", "您可以在「會員中心」查看所有訂單狀態唷。"];
+    return withFallback(
+      async () => (await client.post("/chat", { content })).data,
+      () => {
+        const list = LS.get("voyago_mock_messages", []);
+        list.push({ id: Date.now(), sender: "MEMBER", content, createdAt: new Date().toISOString() });
+        list.push({ id: Date.now() + 1, sender: "STAFF", content: AUTO[Math.floor(Math.random() * AUTO.length)], createdAt: new Date().toISOString() });
+        LS.set("voyago_mock_messages", list);
+        return list;
+      }
+    );
+  },
+
+  updateProfile(payload) {
+    return withFallbackAny(
+      async () => (await client.put("/members/me", payload)).data,
+      () => {
+        const cur = currentMockUser() || {};
+        const updated = { ...cur, name: payload.name ?? cur.name };
+        LS.set("voyago_mock_current", updated);
+        // 同步更新 mock 使用者清單
+        const users = LS.get("voyago_mock_users", []);
+        const idx = users.findIndex((u) => u.email === updated.email);
+        if (idx >= 0) { users[idx] = { ...users[idx], ...payload }; LS.set("voyago_mock_users", users); }
+        return updated;
+      }
+    );
+  },
+
+  cancelBooking(id) {
+    return withFallbackAny(
+      async () => (await client.delete(`/bookings/${id}`)).data,
+      () => {
+        const list = LS.get("voyago_mock_bookings", []).map((b) =>
+          b.id === id ? { ...b, status: "CANCELLED" } : b);
+        LS.set("voyago_mock_bookings", list);
+        return { ok: true };
+      }
+    );
+  },
+
+  clearMockSession() { localStorage.removeItem("voyago_mock_current"); },
+};
+
+export default api;

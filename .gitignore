@@ -1,0 +1,24 @@
+# dependencies
+**/node_modules/
+# builds
+前端/dist/
+後端/target/
+# env & secrets
+**/.env
+!**/.env.example
+# local db
+**/*.db
+**/*.db-journal
+# IDE / OS
+.idea/
+*.iml
+.settings/
+.classpath
+.project
+.DS_Store
+*.log
+
+# 部署建置成品（非原始碼，不需進版控）
+網站成品*/
+# 個人面試筆記（不公開）
+面試講稿.md

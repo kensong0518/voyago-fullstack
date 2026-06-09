@@ -1,0 +1,75 @@
+package com.voyago.config;
+
+import com.voyago.entity.Member;
+import com.voyago.entity.Route;
+import com.voyago.repository.MemberRepository;
+import com.voyago.repository.RouteRepository;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+/** 首次啟動時若資料庫是空的，自動灌入示範資料（方便雲端部署，免手動跑 SQL）。 */
+@Configuration
+public class DataInitializer {
+
+    @Bean
+    CommandLineRunner seed(RouteRepository routes, MemberRepository members, PasswordEncoder encoder) {
+        return args -> {
+            if (members.count() == 0) {
+                members.save(member("王小明", "demo@voyago.com", encoder.encode("password123"), "MEMBER"));
+                members.save(member("客服 Amy", "staff@voyago.com", encoder.encode("staff1234"), "STAFF"));
+            }
+            if (routes.count() > 0) return;
+
+            routes.save(r("paris-loire", "巴黎與羅亞爾河城堡", "漫步塞納河畔、登艾菲爾鐵塔，再走訪羅亞爾河谷的夢幻城堡。",
+                "自助行程，含住宿與交通票券安排，行程自由彈性。第一天抵達巴黎入住市區飯店。第二天參觀羅浮宮與奧塞美術館。第三天登艾菲爾鐵塔、漫步香榭大道並搭塞納河遊船。第四天前往凡爾賽宮一日遊。第五天南下羅亞爾河谷，造訪香波堡與雪儂梭堡。第六天自由購物後賦歸。附中文自助手冊、巴黎博物館通行證與火車票。",
+                "巴黎 · 羅亞爾河", "法國", 6, 52800, 4.8, 286, "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200&q=80", "自由行,城市,藝術,蜜月", true));
+            routes.save(r("italy-classic", "義大利經典三城自由行", "一次走遍羅馬古蹟、佛羅倫斯文藝復興與威尼斯水都。",
+                "含三城之間的義大利高鐵票與精選住宿。第一到三天在羅馬，造訪競技場、梵蒂岡博物館、許願池與西班牙階梯。第四到五天前往佛羅倫斯，欣賞百花大教堂、烏菲茲美術館與米開朗基羅廣場夕陽。第六到七天抵達威尼斯，漫遊聖馬可廣場、搭乘貢多拉並前往彩色島。第八天賦歸。全程附中文導覽 App 與城市交通券。",
+                "羅馬 · 佛羅倫斯 · 威尼斯", "義大利", 8, 68800, 4.9, 342, "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=1200&q=80", "自由行,古蹟,美食,攝影", true));
+            routes.save(r("spain-barcelona", "巴塞隆納高第建築巡禮", "探索聖家堂、奎爾公園與高第奇幻建築，品味西班牙小酒館。",
+                "深入加泰隆尼亞之都的自助旅程。第一天抵達入住哥德區。第二天參觀聖家堂與米拉之家。第三天漫遊奎爾公園與巴特婁之家。第四天蘭布拉大道、波蓋利亞市場與海濱巴塞隆內塔。第五天前往蒙瑟瑞特山一日遊。第六天賦歸。附聖家堂快速通關門票與 Tapas 美食地圖。",
+                "巴塞隆納", "西班牙", 6, 49800, 4.7, 231, "https://images.unsplash.com/photo-1583422409516-2895a77efded?w=1200&q=80", "自由行,建築,城市,美食", true));
+            routes.save(r("swiss-jungfrau", "瑞士少女峰山岳鐵道", "搭乘登山鐵道直上歐洲屋脊，飽覽阿爾卑斯雪峰與湖光山色。",
+                "以茵特拉肯為基地的阿爾卑斯自助行。第一天抵達蘇黎世轉往茵特拉肯。第二天登上少女峰車站，眺望阿萊奇冰河。第三天搭纜車上雪朗峰與米倫健行。第四天遊圖恩湖與布里恩茲湖。第五天前往琉森，造訪卡貝爾橋與獅子紀念碑。第六天自由探索。第七天賦歸。全程含瑞士旅遊通行證。",
+                "茵特拉肯 · 少女峰", "瑞士", 7, 98000, 4.8, 198, "https://images.unsplash.com/photo-1530841377377-3ff06c0ca713?w=1200&q=80", "鐵道,雪景,健行,蜜月", false));
+            routes.save(r("greece-santorini", "希臘雅典與聖托里尼跳島", "走訪雅典衛城，再到愛琴海跳島，住進聖托里尼藍頂小屋。",
+                "古文明與愛琴海的浪漫自助之旅。第一到二天在雅典，登衛城帕德嫩神廟、漫步普拉卡老城。第三天搭船前往聖托里尼。第四到五天在伊亞小鎮看世界最美夕陽、租車環島。第六天乘船跳島至米克諾斯。第七天享受白色風車與海灘。第八天賦歸。含島間渡輪票與懸崖飯店住宿。",
+                "雅典 · 聖托里尼", "希臘", 8, 76800, 4.9, 264, "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=1200&q=80", "跳島,海景,蜜月,攝影", true));
+            routes.save(r("netherlands-amsterdam", "荷蘭運河與鬱金香之旅", "騎單車穿梭運河之城，春季造訪庫肯霍夫鬱金香花園。",
+                "悠閒的低地國自助行。第一天抵達阿姆斯特丹入住運河區。第二天參觀梵谷美術館與安妮之家。第三天租單車環遊運河與約旦區。第四天前往庫肯霍夫鬱金香花園與風車村。第五天賦歸。附運河遊船票與博物館卡。",
+                "阿姆斯特丹 · 庫肯霍夫", "荷蘭", 5, 45800, 4.6, 176, "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=1200&q=80", "自由行,城市,單車,花季", false));
+            routes.save(r("czech-prague", "捷克布拉格與庫倫洛夫", "漫步查理大橋與布拉格城堡，走進中世紀童話小鎮庫倫洛夫。",
+                "波西米亞的古城自助行。第一天抵達布拉格入住舊城區。第二天遊布拉格城堡、黃金巷與聖維特大教堂。第三天漫步查理大橋、舊城廣場與天文鐘。第四天南下世界遺產小鎮庫倫洛夫。第五天暢遊小鎮城堡與彩繪塔。第六天返回布拉格賦歸。附中文地圖與交通票。",
+                "布拉格 · 庫倫洛夫", "捷克", 6, 42800, 4.7, 209, "https://images.unsplash.com/photo-1541849546-216549ae216d?w=1200&q=80", "自由行,古城,人文,攝影", false));
+            routes.save(r("austria-vienna", "奧地利維也納與哈修塔特", "在音樂之都聽一場音樂會，再到湖畔仙境哈修塔特放空。",
+                "音樂與湖光的奧地利自助行。第一天抵達維也納。第二天參觀熊布朗宮與美景宮。第三天欣賞一場古典音樂會，漫步環城大道。第四天前往薩爾斯堡，造訪莫札特故居。第五天暢遊湖區明珠哈修塔特。第六天聖沃夫岡湖區自由活動。第七天賦歸。含博物館門票與音樂會席位。",
+                "維也納 · 哈修塔特", "奧地利", 7, 58800, 4.8, 187, "https://images.unsplash.com/photo-1516550893923-42d28e5677af?w=1200&q=80", "自由行,音樂,湖景,人文", false));
+            routes.save(r("portugal-lisbon", "葡萄牙里斯本與波多", "搭懷舊電車遊里斯本，再到波多品味波特酒與河岸風光。",
+                "大西洋畔的葡萄牙自助行。第一天抵達里斯本。第二天搭 28 號懷舊電車遊阿爾法瑪舊城。第三天前往辛特拉，造訪佩納宮與羅卡角。第四天搭高鐵北上波多。第五天遊路易一世大橋與河岸酒窖品波特酒。第六天暢遊書店與杜羅河谷。第七天賦歸。附電車券與品酒行程。",
+                "里斯本 · 波多", "葡萄牙", 7, 51800, 4.7, 154, "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?w=1200&q=80", "自由行,海港,美食,品酒", false));
+            routes.save(r("norway-fjord", "挪威峽灣與卑爾根", "搭乘縮影鐵道與峽灣遊船，深入世界最美的松恩與蓋倫格峽灣。",
+                "北歐峽灣的壯麗自助行。第一天抵達奧斯陸。第二天搭挪威縮影鐵道前往弗洛姆。第三天乘船遊覽松恩峽灣。第四天抵達卑爾根，漫步布呂根碼頭。第五天搭纜車登佛羅伊恩山。第六天前往蓋倫格峽灣。第七到八天峽灣健行與精靈之路。第九天賦歸。含鐵道與峽灣遊船套票。",
+                "卑爾根 · 松恩峽灣", "挪威", 9, 132000, 4.8, 121, "https://images.unsplash.com/photo-1601581875309-fafbf2d3ed3a?w=1200&q=80", "峽灣,鐵道,自然,攝影", true));
+
+            System.out.println("✅ DataInitializer: 已灌入 10 筆歐洲行程與示範帳號");
+        };
+    }
+
+    private static Member member(String name, String email, String pwd, String role) {
+        Member m = new Member();
+        m.setName(name); m.setEmail(email); m.setPassword(pwd); m.setRole(role); m.setProvider("LOCAL");
+        return m;
+    }
+
+    private static Route r(String slug, String name, String summary, String desc, String location,
+                           String country, int days, int price, double rating, int reviews,
+                           String img, String tags, boolean featured) {
+        Route x = new Route();
+        x.setSlug(slug); x.setName(name); x.setSummary(summary); x.setDescription(desc);
+        x.setLocation(location); x.setCountry(country); x.setDays(days); x.setPrice(price);
+        x.setRating(rating); x.setReviews(reviews); x.setImageUrl(img); x.setTags(tags); x.setFeatured(featured);
+        return x;
+    }
+}

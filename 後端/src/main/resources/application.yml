@@ -1,0 +1,41 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: voyago-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/voyago?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Taipei&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:voyago-super-secret-key-change-me-in-production-please-32bytes}
+    expiration-ms: 604800000
+  cors:
+    allowed-origins: ${FRONTEND_ORIGIN:http://localhost:5173}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:484615494439-1gb54mkts6l96t5o8pafsjccnmugk3hr.apps.googleusercontent.com}
+
+# 只暴露 health 與 info，不洩漏 env / heapdump / 其他敏感端點
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never

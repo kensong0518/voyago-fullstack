@@ -1,0 +1,76 @@
+# 一鍵啟動整個前後端分離系統：  docker compose up --build
+#
+#   前端（Nginx 反代 /api → backend）   http://localhost
+#   後端 REST API                       http://localhost:8080
+#   MySQL                              localhost:3306
+#
+# 機敏值請改用 .env 檔（複製 .env.example）：
+#   MYSQL_ROOT_PASSWORD, JWT_SECRET, GOOGLE_CLIENT_ID, VITE_GOOGLE_CLIENT_ID
+
+name: voyago
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+      - --skip-character-set-client-handshake
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: voyago
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 首次啟動自動跑 SQL（schema + seed）
+      - ./資料庫:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./後端
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/voyago?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Taipei&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      # 前端是同源（透過 Nginx proxy）；同時保留 5173 以便 dev 連線
+      FRONTEND_ORIGIN: "http://localhost,http://localhost:5173"
+      JWT_SECRET: ${JWT_SECRET:-compose-demo-secret-change-me-please-32bytes-long}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./前端
+      args:
+        # Nginx 反代 /api，前端用相對路徑即可
+        VITE_API_BASE: "/api"
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mysql-data:

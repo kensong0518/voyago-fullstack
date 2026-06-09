@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# 同一 PR 連續 push 時，自動取消前一次未完成的 run（節省 Actions 額度）
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: 後端建置 + 測試 (Spring Boot + JDK 17)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 後端
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Maven verify（含單元測試）
+        run: mvn -B -ntp verify
+
+      - name: 上傳測試報告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: 後端/target/surefire-reports
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: 上傳 jar
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: voyago-backend-jar
+          path: 後端/target/*.jar
+          if-no-files-found: ignore
+          retention-days: 7
+
+  frontend:
+    name: 前端建置 (Vue 3 + Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 前端
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: 前端/package-lock.json
+
+      - name: 安裝套件（npm ci，確保 lockfile 一致）
+        run: npm ci
+
+      - name: 建置
+        run: npm run build
+
+      - name: 上傳 dist 產物
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: voyago-frontend-dist
+          path: 前端/dist
+          if-no-files-found: ignore
+          retention-days: 7
