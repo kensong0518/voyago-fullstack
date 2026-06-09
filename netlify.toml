@@ -14,6 +14,9 @@
   NODE_VERSION = "20"
   # Vite 用相對路徑 /api 呼叫，由下面的 proxy 轉到後端
   VITE_API_BASE = "/api"
+  # 純前端示範模式：完全不打後端，全部資料用內建 mock。
+  # 等真正接好 Render + TiDB 後端、設好 BACKEND_ORIGIN 後改成 false。
+  VITE_DEMO_ONLY = "true"
 
 # /api/* → 後端，前端維持同源呼叫免處理 CORS
 # 把 BACKEND_ORIGIN 環境變數設好後，Netlify 會自動展開
