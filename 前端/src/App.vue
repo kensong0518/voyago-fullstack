@@ -11,11 +11,12 @@ onMounted(() => auth.fetchMe());
 
 <template>
   <div class="flex min-h-screen flex-col">
-    <DemoBanner />
+    <DemoBanner position="top" />
     <NavBar />
     <main class="flex-1">
       <RouterView />
     </main>
     <AppFooter />
+    <DemoBanner position="bottom" />
   </div>
 </template>
