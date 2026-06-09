@@ -3,6 +3,8 @@
 # builds
 前端/dist/
 後端/target/
+# netlify CLI 本機狀態（含 site 連結，不進版控）
+**/.netlify/
 # env & secrets
 **/.env
 !**/.env.example
