@@ -7,7 +7,10 @@ export const useAuthStore = defineStore("auth", {
     token: localStorage.getItem("voyago_token") || null,
     ready: false,
   }),
-  getters: { isLoggedIn: (s) => !!s.user },
+  getters: {
+    isLoggedIn: (s) => !!s.user,
+    isStaff: (s) => s.user?.role === "STAFF",
+  },
   actions: {
     setSession(token, user) {
       this.token = token;
@@ -45,6 +48,10 @@ export const useAuthStore = defineStore("auth", {
       this.token = null;
       localStorage.removeItem("voyago_token");
       api.clearMockSession();
+    },
+    async deleteAccount() {
+      await api.deleteMe();
+      this.logout();
     },
   },
 });

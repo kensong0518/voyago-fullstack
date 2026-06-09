@@ -211,6 +211,66 @@ export const api = {
     );
   },
 
+  // ========== 會員管理（STAFF 用） ==========
+  listMembers({ q = "", page = 0, size = 20 } = {}) {
+    return withFallbackAny(
+      async () => (await client.get("/members", { params: { q, page, size } })).data,
+      () => {
+        const all = mockUsers();
+        const filtered = q ? all.filter((u) => [u.name, u.email, u.phone].some((f) => (f || "").toLowerCase().includes(q.toLowerCase()))) : all;
+        const start = page * size;
+        return {
+          content: filtered.slice(start, start + size).map(publicUser),
+          page, size, totalElements: filtered.length,
+          totalPages: Math.ceil(filtered.length / size),
+        };
+      }
+    );
+  },
+
+  createMember(payload) {
+    return withFallbackAny(
+      async () => (await client.post("/members", payload)).data,
+      () => {
+        const users = LS.get("voyago_mock_users", []);
+        if ([...MOCK_USERS, ...users].some((u) => u.email === payload.email))
+          throw new Error("此 Email 已被註冊");
+        const u = { id: Date.now(), name: payload.name, email: payload.email,
+                    phone: payload.phone || null, password: payload.password,
+                    role: payload.role || "MEMBER", provider: "LOCAL", avatarUrl: null };
+        users.push(u); LS.set("voyago_mock_users", users);
+        return publicUser(u);
+      }
+    );
+  },
+
+  deleteMember(id) {
+    return withFallbackAny(
+      async () => (await client.delete(`/members/${id}`)).data,
+      () => {
+        const users = LS.get("voyago_mock_users", []).filter((u) => u.id !== id);
+        LS.set("voyago_mock_users", users);
+        return { ok: true };
+      }
+    );
+  },
+
+  // 使用者刪除自己的帳號
+  deleteMe() {
+    return withFallbackAny(
+      async () => (await client.delete("/members/me")).data,
+      () => {
+        const cur = currentMockUser();
+        if (cur) {
+          const users = LS.get("voyago_mock_users", []).filter((u) => u.email !== cur.email);
+          LS.set("voyago_mock_users", users);
+        }
+        localStorage.removeItem("voyago_mock_current");
+        return { ok: true };
+      }
+    );
+  },
+
   clearMockSession() { localStorage.removeItem("voyago_mock_current"); },
 };
 

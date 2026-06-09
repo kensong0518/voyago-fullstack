@@ -19,6 +19,25 @@ const profile = ref({ name: "", phone: "" });
 const savingProfile = ref(false);
 const profileMsg = ref("");
 
+// 自刪
+const deleteBusy = ref(false);
+const deleteErr = ref("");
+
+// ---- STAFF 後台：會員管理 ----
+const memberList = ref([]);
+const memberPage = ref(0);
+const memberSize = 10;
+const memberTotal = ref(0);
+const memberTotalPages = ref(0);
+const memberQ = ref("");
+const memberBusy = ref(false);
+const memberErr = ref("");
+const newMember = ref({ name: "", email: "", phone: "", password: "", role: "MEMBER" });
+const newMemberMsg = ref("");
+const newMemberBusy = ref(false);
+const PWD_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+const newPwdValid = computed(() => PWD_RE.test(newMember.value.password));
+
 const STATUS = {
   CONFIRMED: { label: "已確認", cls: "bg-brand-50 text-brand-700" },
   PENDING: { label: "處理中", cls: "bg-amber-50 text-amber-700" },
@@ -29,6 +48,16 @@ const dateText = (d) => new Date(d).toLocaleDateString("zh-TW");
 
 const favoriteRoutes = computed(() => allRoutes.value.filter((r) => fav.has(r.id)));
 const activeOrders = computed(() => bookings.value.filter((b) => b.status !== "CANCELLED"));
+
+const TABS = computed(() => {
+  const base = [
+    { v: "orders", l: "我的訂單" },
+    { v: "favorites", l: "我的收藏" },
+    { v: "profile", l: "個人資料" },
+  ];
+  if (auth.isStaff) base.push({ v: "members", l: "👥 會員管理" });
+  return base;
+});
 
 onMounted(async () => {
   if (!auth.ready) await auth.fetchMe();
@@ -58,11 +87,72 @@ async function saveProfile() {
   } finally { savingProfile.value = false; }
 }
 
-const TABS = [
-  { v: "orders", l: "我的訂單" },
-  { v: "favorites", l: "我的收藏" },
-  { v: "profile", l: "個人資料" },
-];
+async function deleteMyAccount() {
+  if (!confirm("⚠️ 確定要刪除你的帳號嗎？\n\n所有訂單、客服訊息會一起刪除，無法復原。")) return;
+  if (!confirm("再次確認：真的要刪除帳號？")) return;
+  deleteErr.value = ""; deleteBusy.value = true;
+  try {
+    await auth.deleteAccount();
+    router.push("/?deleted=1");
+  } catch (e) {
+    deleteErr.value = e.message;
+  } finally { deleteBusy.value = false; }
+}
+
+// ---- STAFF 會員管理動作 ----
+async function loadMembers() {
+  memberBusy.value = true; memberErr.value = "";
+  try {
+    const data = await api.listMembers({ q: memberQ.value, page: memberPage.value, size: memberSize });
+    memberList.value = data.content || [];
+    memberTotal.value = data.totalElements ?? memberList.value.length;
+    memberTotalPages.value = data.totalPages ?? 1;
+  } catch (e) {
+    memberErr.value = e.message;
+  } finally { memberBusy.value = false; }
+}
+
+async function openMembersTab() {
+  tab.value = "members";
+  if (memberList.value.length === 0) await loadMembers();
+}
+
+function changePage(delta) {
+  const next = memberPage.value + delta;
+  if (next < 0 || next >= memberTotalPages.value) return;
+  memberPage.value = next;
+  loadMembers();
+}
+
+async function searchMembers() {
+  memberPage.value = 0;
+  await loadMembers();
+}
+
+async function createNewMember() {
+  newMemberMsg.value = "";
+  if (!newPwdValid.value) { newMemberMsg.value = "密碼需至少 8 碼且含英文與數字"; return; }
+  newMemberBusy.value = true;
+  try {
+    await api.createMember({ ...newMember.value });
+    newMemberMsg.value = "✓ 新增成功";
+    newMember.value = { name: "", email: "", phone: "", password: "", role: "MEMBER" };
+    await loadMembers();
+  } catch (e) {
+    newMemberMsg.value = e.message;
+  } finally { newMemberBusy.value = false; }
+}
+
+async function deleteOneMember(m) {
+  if (m.id === auth.user?.id) { alert("請改用「刪除我的帳號」"); return; }
+  if (!confirm(`確定要刪除會員「${m.name}」(${m.email})？此動作無法復原`)) return;
+  try {
+    await api.deleteMember(m.id);
+    await loadMembers();
+  } catch (e) {
+    alert(e.message);
+  }
+}
 </script>
 
 <template>
@@ -86,7 +176,7 @@ const TABS = [
           <div class="flex justify-between"><span class="text-ink-400">收藏行程</span><span class="font-medium">{{ fav.count }} 筆</span></div>
         </div>
         <nav class="mt-5 space-y-1">
-          <button v-for="t in TABS" :key="t.v" @click="tab = t.v"
+          <button v-for="t in TABS" :key="t.v" @click="t.v === 'members' ? openMembersTab() : (tab = t.v)"
             :class="['w-full rounded-xl px-4 py-2.5 text-left text-sm font-medium transition', tab === t.v ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-ink-50']">{{ t.l }}</button>
           <RouterLink to="/chat" class="block w-full rounded-xl px-4 py-2.5 text-left text-sm font-medium text-ink-600 hover:bg-ink-50">💬 聯絡客服</RouterLink>
         </nav>
@@ -133,7 +223,7 @@ const TABS = [
         </div>
 
         <!-- 個人資料 -->
-        <div v-else>
+        <div v-else-if="tab === 'profile'">
           <h2 class="text-lg font-bold">個人資料</h2>
           <form @submit.prevent="saveProfile" class="card mt-4 max-w-lg space-y-4 p-6">
             <div><label class="label">姓名</label><input v-model="profile.name" required class="input" /></div>
@@ -142,6 +232,109 @@ const TABS = [
             <p v-if="profileMsg" class="rounded-lg px-3 py-2 text-sm" :class="profileMsg.startsWith('✓') ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'">{{ profileMsg }}</p>
             <button :disabled="savingProfile" class="btn-primary">{{ savingProfile ? "儲存中…" : "儲存變更" }}</button>
           </form>
+
+          <!-- 危險區：刪除帳號 -->
+          <div class="card mt-6 max-w-lg border border-red-200 bg-red-50/40 p-6">
+            <h3 class="text-base font-bold text-red-700">⚠️ 危險區</h3>
+            <p class="mt-2 text-sm text-ink-600">
+              刪除帳號後，你的所有訂單與客服訊息會一併消失，無法復原。
+            </p>
+            <p v-if="deleteErr" class="mt-3 rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700">{{ deleteErr }}</p>
+            <button @click="deleteMyAccount" :disabled="deleteBusy"
+              class="btn mt-4 bg-red-600 text-white hover:bg-red-700 disabled:opacity-60">
+              {{ deleteBusy ? "刪除中…" : "刪除我的帳號" }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 會員管理（STAFF 限定） -->
+        <div v-else-if="tab === 'members' && auth.isStaff">
+          <h2 class="text-lg font-bold">👥 會員管理</h2>
+
+          <!-- 新增會員 -->
+          <details class="card mt-4 p-5" open>
+            <summary class="cursor-pointer text-sm font-bold text-brand-700">+ 新增會員</summary>
+            <form @submit.prevent="createNewMember" class="mt-4 grid gap-3 sm:grid-cols-2">
+              <div><label class="label">姓名</label>
+                <input v-model="newMember.name" required minlength="2" maxlength="50" class="input" /></div>
+              <div><label class="label">Email</label>
+                <input v-model="newMember.email" type="email" required class="input" /></div>
+              <div><label class="label">手機（選填）</label>
+                <input v-model="newMember.phone" type="tel" class="input" /></div>
+              <div><label class="label">角色</label>
+                <select v-model="newMember.role" class="input">
+                  <option value="MEMBER">一般會員</option>
+                  <option value="STAFF">客服人員</option>
+                </select>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="label">初始密碼（至少 8 碼、含英文與數字）</label>
+                <input v-model="newMember.password" type="password" required minlength="8"
+                  autocomplete="new-password" class="input"
+                  :class="newMember.password && !newPwdValid ? 'ring-1 ring-amber-400' : ''" />
+              </div>
+              <p v-if="newMemberMsg" class="sm:col-span-2 rounded-lg px-3 py-2 text-sm"
+                :class="newMemberMsg.startsWith('✓') ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'">
+                {{ newMemberMsg }}
+              </p>
+              <button :disabled="newMemberBusy || !newPwdValid" class="btn-primary sm:col-span-2">
+                {{ newMemberBusy ? "建立中…" : "建立會員" }}
+              </button>
+            </form>
+          </details>
+
+          <!-- 搜尋 + 列表 -->
+          <div class="card mt-4 p-5">
+            <form @submit.prevent="searchMembers" class="flex gap-2">
+              <input v-model="memberQ" placeholder="搜尋姓名 / Email / 電話…" class="input flex-1" />
+              <button class="btn-outline whitespace-nowrap">搜尋</button>
+            </form>
+
+            <p v-if="memberBusy" class="mt-4 text-center text-ink-400">載入中…</p>
+            <p v-else-if="memberErr" class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ memberErr }}</p>
+            <p v-else-if="memberList.length === 0" class="mt-4 text-center text-ink-400">沒有符合條件的會員</p>
+
+            <div v-else class="mt-4 overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="border-b border-ink-100 text-left text-xs uppercase text-ink-400">
+                  <tr>
+                    <th class="pb-2 pr-3">姓名</th>
+                    <th class="pb-2 pr-3">Email</th>
+                    <th class="pb-2 pr-3">角色</th>
+                    <th class="pb-2 pr-3">登入方式</th>
+                    <th class="pb-2 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="m in memberList" :key="m.id" class="border-b border-ink-50 last:border-0">
+                    <td class="py-3 pr-3 font-medium">{{ m.name }}</td>
+                    <td class="py-3 pr-3 text-ink-500">{{ m.email }}</td>
+                    <td class="py-3 pr-3">
+                      <span :class="['chip text-xs', m.role === 'STAFF' ? 'bg-brand-50 text-brand-700' : 'bg-ink-50 text-ink-600']">
+                        {{ m.role === 'STAFF' ? '客服' : '會員' }}
+                      </span>
+                    </td>
+                    <td class="py-3 pr-3 text-ink-500">{{ m.provider === "GOOGLE" ? "Google" : "帳密" }}</td>
+                    <td class="py-3 text-right">
+                      <button @click="deleteOneMember(m)" class="text-xs font-semibold text-rose-600 hover:underline"
+                        :disabled="m.id === auth.user?.id">
+                        {{ m.id === auth.user?.id ? "（自己）" : "刪除" }}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 分頁 -->
+            <div v-if="memberTotalPages > 1" class="mt-4 flex items-center justify-between text-sm">
+              <span class="text-ink-500">共 {{ memberTotal }} 位，第 {{ memberPage + 1 }} / {{ memberTotalPages }} 頁</span>
+              <div class="flex gap-2">
+                <button @click="changePage(-1)" :disabled="memberPage === 0" class="btn-outline px-3 py-1 disabled:opacity-50">←</button>
+                <button @click="changePage(1)" :disabled="memberPage >= memberTotalPages - 1" class="btn-outline px-3 py-1 disabled:opacity-50">→</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
