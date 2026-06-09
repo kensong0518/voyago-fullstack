@@ -1,0 +1,44 @@
+# Netlify 設定：自動 build 前端 + 反代 /api 到 Render 後端
+#
+# 部署完後端後，在 Netlify 設定一個環境變數：
+#   BACKEND_ORIGIN = https://你的-render-app.onrender.com
+#
+# 設定路徑：Netlify Dashboard → Site settings → Environment variables
+
+[build]
+  base = "前端"
+  publish = "dist"
+  command = "npm ci && npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Vite 用相對路徑 /api 呼叫，由下面的 proxy 轉到後端
+  VITE_API_BASE = "/api"
+
+# /api/* → 後端，前端維持同源呼叫免處理 CORS
+# 把 BACKEND_ORIGIN 環境變數設好後，Netlify 會自動展開
+[[redirects]]
+  from = "/api/*"
+  to = "${BACKEND_ORIGIN}/api/:splat"
+  status = 200
+  force = true
+
+# SPA 路由：找不到的路徑回 index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 安全 / 快取 headers
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"

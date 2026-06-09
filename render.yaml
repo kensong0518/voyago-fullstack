@@ -1,0 +1,47 @@
+# Render Blueprint — 一鍵把後端部署到 Render 免費 web service
+#
+# 怎麼用：
+#   1) 到 https://dashboard.render.com/select-repo?type=blueprint
+#   2) 選 GitHub repo: kensong0518/voyago-fullstack
+#   3) Render 會讀到這個檔案，建立服務後讓你填 6 個 env var（畫面會問）
+#   4) 部署完成後拿到 https://voyago-backend-xxxx.onrender.com 這個網址，
+#      填回 netlify.toml 的 proxy 與 Render 的 FRONTEND_ORIGIN
+#
+# 免費 tier 限制：閒置 15 分鐘會睡，下次請求約 30 秒冷啟動。Demo 夠用。
+
+services:
+  - type: web
+    name: voyago-backend
+    runtime: docker
+    dockerfilePath: ./後端/Dockerfile
+    dockerContext: ./後端
+    plan: free
+    region: singapore         # 台灣使用者最近的免費機房
+    healthCheckPath: /actuator/health
+    autoDeploy: true          # push 到 main 自動 redeploy
+
+    envVars:
+      # ---------- 應用設定（部署時手動填） ----------
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+        # 例： jdbc:mysql://gateway01.us-west-2.prod.aws.tidbcloud.com:4000/voyago?useSSL=true&requireSSL=true
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+        # 例： https://gleeful-valkyrie-494d4e.netlify.app
+
+      # ---------- 自動產生 ----------
+      - key: JWT_SECRET
+        generateValue: true   # Render 會生成隨機強密鑰
+
+      # ---------- 選用 ----------
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+        # 留空也沒關係，Google 登入按鈕會自動隱藏
+
+      # ---------- JVM tuning（容器記憶體 512MB 友善） ----------
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=70.0 -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
