@@ -39,8 +39,8 @@ const PWD_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const newPwdValid = computed(() => PWD_RE.test(newMember.value.password));
 
 const STATUS = {
-  CONFIRMED: { label: "已確認", cls: "bg-brand-50 text-brand-700" },
-  PENDING: { label: "處理中", cls: "bg-amber-50 text-amber-700" },
+  CONFIRMED: { label: "已付款", cls: "bg-brand-50 text-brand-700" },
+  PENDING: { label: "待付款", cls: "bg-amber-50 text-amber-700" },
   CANCELLED: { label: "已取消", cls: "bg-ink-100 text-ink-500" },
 };
 const twd = (n) => new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD", maximumFractionDigits: 0 }).format(n);
@@ -205,7 +205,11 @@ async function deleteOneMember(m) {
                 </div>
                 <div class="flex items-end justify-between">
                   <span class="font-extrabold text-brand-700">{{ twd(b.totalPrice) }}</span>
-                  <button v-if="b.status !== 'CANCELLED'" @click="cancel(b)" class="text-xs font-semibold text-rose-500 hover:underline">取消訂單</button>
+                  <div class="flex items-center gap-3">
+                    <RouterLink v-if="b.status === 'PENDING'" :to="`/checkout/${b.id}`"
+                      class="rounded-full bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700">前往結帳</RouterLink>
+                    <button @click="cancel(b)" class="text-xs font-semibold text-rose-500 hover:underline">取消訂單</button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -40,6 +40,12 @@ public class BookingController {
         return ResponseEntity.status(HttpStatus.CREATED).body(bookings.create(CurrentUser.id(), req));
     }
 
+    /** 模擬結帳：把待付款訂單轉為已付款（示範站不接真實金流） */
+    @PostMapping("/{id}/pay")
+    public BookingDto pay(@PathVariable Long id) {
+        return bookings.pay(CurrentUser.id(), id);
+    }
+
     @DeleteMapping("/{id}")
     public Map<String, Boolean> cancel(@PathVariable Long id) {
         bookings.cancel(CurrentUser.id(), id);

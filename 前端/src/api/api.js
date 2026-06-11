@@ -178,7 +178,8 @@ export const api = {
       async () => (await client.post("/bookings", { routeId, people, travelDate })).data,
       () => {
         const route = MOCK_ROUTES.find((r) => r.id === routeId);
-        const booking = { id: Date.now(), people, travelDate, status: "CONFIRMED",
+        // 新訂單為「待付款」，要走結帳流程付款後才變「已付款」
+        const booking = { id: Date.now(), people, travelDate, status: "PENDING",
                           totalPrice: route.price * people, route };
         const list = scopedGet("voyago_mock_bookings", []);
         list.unshift(booking); scopedSet("voyago_mock_bookings", list);
@@ -222,6 +223,23 @@ export const api = {
         const idx = users.findIndex((u) => u.email === updated.email);
         if (idx >= 0) { users[idx] = { ...users[idx], ...payload }; LS.set("voyago_mock_users", users); }
         return updated;
+      }
+    );
+  },
+
+  // 結帳付款（示範模式為模擬付款，不會真的扣款）
+  payBooking(id, method = "CARD") {
+    return withFallbackAny(
+      async () => (await client.post(`/bookings/${id}/pay`, { method })).data,
+      () => {
+        const list = scopedGet("voyago_mock_bookings", []);
+        const b = list.find((x) => x.id === id);
+        if (!b) { const e = new Error("找不到訂單"); e.status = 404; throw e; }
+        b.status = "CONFIRMED";
+        b.paymentMethod = method;
+        b.paidAt = new Date().toISOString();
+        scopedSet("voyago_mock_bookings", list);
+        return b;
       }
     );
   },

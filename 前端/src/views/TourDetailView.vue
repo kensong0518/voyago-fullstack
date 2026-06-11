@@ -55,9 +55,10 @@ async function book() {
   if (!travelDate.value) { error.value = "請選擇出發日期"; return; }
   submitState.value = "loading";
   try {
-    await api.createBooking({ routeId: data.value.id, people: people.value, travelDate: travelDate.value });
+    const booking = await api.createBooking({ routeId: data.value.id, people: people.value, travelDate: travelDate.value });
     submitState.value = "done";
-    setTimeout(() => router.push("/dashboard"), 900);
+    // 訂單建立後直接前往結帳頁付款
+    setTimeout(() => router.push(`/checkout/${booking.id}`), 600);
   } catch (e) { error.value = e.message; submitState.value = "idle"; }
 }
 </script>
@@ -200,7 +201,7 @@ async function book() {
           </div>
           <p v-if="error" class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>
           <button :disabled="submitState !== 'idle'" class="btn-primary mt-4 w-full py-3 text-base">
-            {{ submitState === "loading" ? "預訂中…" : submitState === "done" ? "✓ 預訂成功！" : auth.isLoggedIn ? "立即預訂" : "登入後預訂" }}
+            {{ submitState === "loading" ? "預訂中…" : submitState === "done" ? "✓ 訂單成立，前往結帳…" : auth.isLoggedIn ? "立即預訂" : "登入後預訂" }}
           </button>
           <p v-if="!auth.isLoggedIn" class="mt-2 text-center text-xs text-ink-400">需登入會員才能完成預訂</p>
           <button type="button" @click="fav.toggle(data.id)" class="btn-outline mt-2 w-full">

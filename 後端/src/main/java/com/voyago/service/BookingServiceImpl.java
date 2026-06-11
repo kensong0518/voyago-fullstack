@@ -75,8 +75,24 @@ public class BookingServiceImpl implements BookingService {
         b.setPeople(req.people());
         b.setTravelDate(travelDate);
         b.setTotalPrice(route.getPrice() * req.people());
-        b.setStatus("CONFIRMED");
+        b.setStatus("PENDING");          // 待付款，結帳完成後轉 CONFIRMED
         bookings.save(b);
+        return BookingDto.from(b);
+    }
+
+    @Override
+    @Transactional
+    public BookingDto pay(Long memberId, Long bookingId) {
+        Booking b = bookings.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到訂單"));
+        if (!b.getMember().getId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限支付此訂單");
+        }
+        // 冪等：已付款的訂單直接回傳，不重複處理
+        if (!"CONFIRMED".equals(b.getStatus())) {
+            b.setStatus("CONFIRMED");
+            bookings.save(b);
+        }
         return BookingDto.from(b);
     }
 

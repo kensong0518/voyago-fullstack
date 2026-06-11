@@ -85,6 +85,7 @@ flowchart LR
 - 行程瀏覽：關鍵字搜尋、標籤篩選、多種排序（精選／價格／評分／天數）、分頁
 - 行程詳情：圖庫、行程特色、每日安排
 - 預訂行程：選日期與人數、自動計算總價、過去日期擋下
+- 結帳流程：訂單成立即進入結帳頁，選付款方式（信用卡／ATM／LINE Pay 模擬）→ 付款完成才轉「已付款」；會員中心可對待付款訂單「前往結帳」
 - 會員中心：訂單查詢與取消、個人資料編輯、**刪除帳號（雙重確認）**
 - 線上客服：訊息對話介面
 
@@ -228,8 +229,9 @@ VITE_DEMO_ONLY=true npm run dev
 | --- | --- | --- | --- |
 | GET | `/api/bookings` | 我的訂單（fetch join 避免 N+1） | 登入 |
 | GET | `/api/bookings/page` | 我的訂單（分頁） | 登入 |
-| POST | `/api/bookings` | 建立訂單（過去日期/超量人數擋下） | 登入 |
-| DELETE | `/api/bookings/{id}` | 取消訂單 | 登入（本人） |
+| POST | `/api/bookings` | 建立訂單（待付款；過去日期/超量人數擋下） | 登入 |
+| POST | `/api/bookings/{id}/pay` | 模擬結帳付款（PENDING → CONFIRMED，冪等） | 登入（本人） |
+| DELETE | `/api/bookings/{id}` | 取消訂單（直接刪除） | 登入（本人） |
 
 ### 客服
 

@@ -8,6 +8,7 @@ const routes = [
   { path: "/login", name: "login", component: () => import("../views/LoginView.vue") },
   { path: "/register", name: "register", component: () => import("../views/RegisterView.vue") },
   { path: "/dashboard", name: "dashboard", component: () => import("../views/DashboardView.vue"), meta: { auth: true } },
+  { path: "/checkout/:id", name: "checkout", component: () => import("../views/CheckoutView.vue"), meta: { auth: true } },
   { path: "/chat", name: "chat", component: () => import("../views/ChatView.vue"), meta: { auth: true } },
   { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("../views/NotFoundView.vue") },
 ];
