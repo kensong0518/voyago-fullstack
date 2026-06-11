@@ -30,6 +30,27 @@ const LS = {
 };
 function mockUsers() { return [...MOCK_USERS, ...LS.get("voyago_mock_users", [])]; }
 function currentMockUser() { return LS.get("voyago_mock_current", null); }
+
+// 個人資料（訂單/客服訊息/收藏）按登入帳號隔離：key 加上 email 後綴，
+// 每個帳號（含不同 Google 帳號）只看得到自己建立的內容。
+// 未登入時用共用 key；帳號首次讀取時把舊版全域資料搬給它（向下相容，舊訂單不消失）。
+function scopedKey(base) {
+  const email = currentMockUser()?.email;
+  return email ? base + "::" + email : base;
+}
+function scopedGet(base, d) {
+  const key = scopedKey(base);
+  if (key !== base && localStorage.getItem(key) === null && localStorage.getItem(base) !== null) {
+    localStorage.setItem(key, localStorage.getItem(base));
+    localStorage.removeItem(base);
+  }
+  return LS.get(key, d);
+}
+function scopedSet(base, v) { LS.set(scopedKey(base), v); }
+function removeScopedData(email) {
+  ["voyago_mock_bookings", "voyago_mock_messages", "voyago_favorites"]
+    .forEach((b) => localStorage.removeItem(b + "::" + email));
+}
 function makeToken(email) { return "mock." + btoa(unescape(encodeURIComponent(email))); }
 function publicUser(u) { return { id: u.id, name: u.name, email: u.email, role: u.role, provider: u.provider, avatarUrl: u.avatarUrl }; }
 
@@ -142,7 +163,7 @@ export const api = {
   getBookings() {
     return withFallback(
       async () => (await client.get("/bookings")).data,
-      () => LS.get("voyago_mock_bookings", [])
+      () => scopedGet("voyago_mock_bookings", [])
     );
   },
 
@@ -153,8 +174,8 @@ export const api = {
         const route = MOCK_ROUTES.find((r) => r.id === routeId);
         const booking = { id: Date.now(), people, travelDate, status: "CONFIRMED",
                           totalPrice: route.price * people, route };
-        const list = LS.get("voyago_mock_bookings", []);
-        list.unshift(booking); LS.set("voyago_mock_bookings", list);
+        const list = scopedGet("voyago_mock_bookings", []);
+        list.unshift(booking); scopedSet("voyago_mock_bookings", list);
         return booking;
       }
     );
@@ -164,7 +185,7 @@ export const api = {
   getChat() {
     return withFallback(
       async () => (await client.get("/chat")).data,
-      () => LS.get("voyago_mock_messages", [])
+      () => scopedGet("voyago_mock_messages", [])
     );
   },
 
@@ -174,10 +195,10 @@ export const api = {
     return withFallback(
       async () => (await client.post("/chat", { content })).data,
       () => {
-        const list = LS.get("voyago_mock_messages", []);
+        const list = scopedGet("voyago_mock_messages", []);
         list.push({ id: Date.now(), sender: "MEMBER", content, createdAt: new Date().toISOString() });
         list.push({ id: Date.now() + 1, sender: "STAFF", content: AUTO[Math.floor(Math.random() * AUTO.length)], createdAt: new Date().toISOString() });
-        LS.set("voyago_mock_messages", list);
+        scopedSet("voyago_mock_messages", list);
         return list;
       }
     );
@@ -203,9 +224,9 @@ export const api = {
     return withFallbackAny(
       async () => (await client.delete(`/bookings/${id}`)).data,
       () => {
-        const list = LS.get("voyago_mock_bookings", []).map((b) =>
+        const list = scopedGet("voyago_mock_bookings", []).map((b) =>
           b.id === id ? { ...b, status: "CANCELLED" } : b);
-        LS.set("voyago_mock_bookings", list);
+        scopedSet("voyago_mock_bookings", list);
         return { ok: true };
       }
     );
@@ -248,8 +269,10 @@ export const api = {
     return withFallbackAny(
       async () => (await client.delete(`/members/${id}`)).data,
       () => {
-        const users = LS.get("voyago_mock_users", []).filter((u) => u.id !== id);
-        LS.set("voyago_mock_users", users);
+        const all = LS.get("voyago_mock_users", []);
+        const target = all.find((u) => u.id === id);
+        if (target) removeScopedData(target.email);
+        LS.set("voyago_mock_users", all.filter((u) => u.id !== id));
         return { ok: true };
       }
     );
@@ -264,6 +287,7 @@ export const api = {
         if (cur) {
           const users = LS.get("voyago_mock_users", []).filter((u) => u.email !== cur.email);
           LS.set("voyago_mock_users", users);
+          removeScopedData(cur.email);
         }
         localStorage.removeItem("voyago_mock_current");
         return { ok: true };
