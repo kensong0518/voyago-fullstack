@@ -17,6 +17,9 @@
   # 純前端示範模式：完全不打後端，全部資料用內建 mock。
   # 等真正接好 Render + TiDB 後端、設好 BACKEND_ORIGIN 後改成 false。
   VITE_DEMO_ONLY = "true"
+  # Google 登入：設定後顯示官方 Google 按鈕，任何 Google 帳號都可登入。
+  # 此 Client ID 的「已授權 JavaScript 來源」需包含本站網址（Google Cloud Console 設定）。
+  VITE_GOOGLE_CLIENT_ID = "484615494439-1gb54mkts6l96t5o8pafsjccnmugk3hr.apps.googleusercontent.com"
 
 # /api/* → 後端，前端維持同源呼叫免處理 CORS
 # 把 BACKEND_ORIGIN 環境變數設好後，Netlify 會自動展開
