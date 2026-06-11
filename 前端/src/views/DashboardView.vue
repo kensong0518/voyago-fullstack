@@ -71,9 +71,9 @@ onMounted(async () => {
 });
 
 async function cancel(b) {
-  if (!confirm(`確定要取消「${b.route.name}」這筆訂單嗎？`)) return;
+  if (!confirm(`確定要取消「${b.route.name}」這筆訂單嗎？取消後將直接刪除、不再顯示。`)) return;
   await api.cancelBooking(b.id);
-  b.status = "CANCELLED";
+  bookings.value = bookings.value.filter((x) => x.id !== b.id);   // 取消即刪除
 }
 
 async function saveProfile() {

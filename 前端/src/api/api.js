@@ -163,7 +163,13 @@ export const api = {
   getBookings() {
     return withFallback(
       async () => (await client.get("/bookings")).data,
-      () => scopedGet("voyago_mock_bookings", [])
+      () => {
+        // 取消即刪除：讀取時順手清掉舊版「已取消」的殘留訂單
+        const list = scopedGet("voyago_mock_bookings", []);
+        const live = list.filter((b) => b.status !== "CANCELLED");
+        if (live.length !== list.length) scopedSet("voyago_mock_bookings", live);
+        return live;
+      }
     );
   },
 
@@ -224,8 +230,8 @@ export const api = {
     return withFallbackAny(
       async () => (await client.delete(`/bookings/${id}`)).data,
       () => {
-        const list = scopedGet("voyago_mock_bookings", []).map((b) =>
-          b.id === id ? { ...b, status: "CANCELLED" } : b);
+        // 取消即刪除，訂單列表不再顯示
+        const list = scopedGet("voyago_mock_bookings", []).filter((b) => b.id !== id);
         scopedSet("voyago_mock_bookings", list);
         return { ok: true };
       }

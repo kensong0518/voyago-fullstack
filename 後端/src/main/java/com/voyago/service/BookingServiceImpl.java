@@ -88,7 +88,7 @@ public class BookingServiceImpl implements BookingService {
         if (!b.getMember().getId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限取消此訂單");
         }
-        b.setStatus("CANCELLED");
-        bookings.save(b);
+        bookings.delete(b);   // 取消即刪除，訂單列表不再顯示
+
     }
 }

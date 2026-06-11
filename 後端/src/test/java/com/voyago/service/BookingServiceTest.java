@@ -53,6 +53,6 @@ class BookingServiceTest {
         when(bookings.findById(5L)).thenReturn(Optional.of(b));
 
         assertThrows(ResponseStatusException.class, () -> service.cancel(1L, 5L));
-        verify(bookings, never()).save(any());
+        verify(bookings, never()).delete(any(Booking.class));
     }
 }
