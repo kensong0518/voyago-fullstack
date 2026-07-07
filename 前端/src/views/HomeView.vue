@@ -24,15 +24,15 @@ const stats = [
   { value: "4.8★", label: "平均評價" },
 ];
 const steps = [
-  { icon: "🔍", title: "探索靈感", desc: "依主題、天數與預算，篩選最適合你的旅程。" },
-  { icon: "🗓️", title: "線上預訂", desc: "選擇出發日與人數，即時確認名額。" },
-  { icon: "💬", title: "專屬客服", desc: "出發前後皆有真人客服協助，旅途零煩惱。" },
+  { icon: "🔍", title: "先挑路線", desc: "用主題、天數、預算篩，找到對你胃口的那條，而不是被推一堆。" },
+  { icon: "🗓️", title: "線上下訂", desc: "選好出發日和人數，當下就看到有沒有位，不用等回覆。" },
+  { icon: "💬", title: "有人接手", desc: "行前問簽證、旅途中臨時想改，找到的都是真人。" },
 ];
 const whyUs = [
-  { icon: "✦", title: "嚴選路線", desc: "編輯實地走訪，只留下最值得的歐洲行程。" },
-  { icon: "🧭", title: "自由彈性", desc: "自助行程不趕鴨子，保留大量自由活動時間。" },
-  { icon: "🤝", title: "真人客服", desc: "從規劃到旅途中，隨時有專人協助。" },
-  { icon: "💎", title: "透明價格", desc: "費用包含/不含一目了然，沒有隱藏費用。" },
+  { icon: "✦", title: "路線是走過的", desc: "每條都是編輯自己去過、實際訂過住宿才放上來，不是搬型錄。" },
+  { icon: "🧭", title: "不塞好塞滿", desc: "每天留白給你自己亂逛，我們只把交通和門票這種麻煩事處理掉。" },
+  { icon: "🤝", title: "回你的是真人", desc: "從行前到旅途中都找得到人，不是罐頭訊息打發你。" },
+  { icon: "💎", title: "價格不藏東西", desc: "含什麼、不含什麼列在明處，機票簽證保險不會結帳才冒出來。" },
 ];
 
 const email = ref("");
@@ -56,7 +56,7 @@ onMounted(async () => { all.value = await api.getRoutes({ sort: "featured" }); }
       <div class="max-w-2xl animate-fade-up">
         <span class="chip bg-white/15 text-white">✦ 2026 全新歐洲行程上線</span>
         <h1 class="mt-5 text-4xl font-extrabold leading-tight sm:text-5xl lg:text-6xl">探索歐洲的<br /><span class="text-brand-400">下一段自助旅行</span></h1>
-        <p class="mt-5 max-w-xl text-lg text-ink-200">從巴黎鐵塔到挪威峽灣，為你規劃自由又深度的歐洲自助行。線上探索、即時預訂、真人客服全程相伴。</p>
+        <p class="mt-5 max-w-xl text-lg text-ink-200">從巴黎鐵塔到挪威峽灣，十條走過的歐洲路線任你挑。交通、住宿、門票先幫你搞定，剩下的時間留給你自己玩。</p>
         <div class="mt-8 flex flex-wrap gap-3">
           <RouterLink to="/tours" class="btn-primary px-7 py-3 text-base">開始探索 →</RouterLink>
           <RouterLink to="/register" class="btn px-7 py-3 text-base bg-white/10 text-white hover:bg-white/20">免費加入會員</RouterLink>
