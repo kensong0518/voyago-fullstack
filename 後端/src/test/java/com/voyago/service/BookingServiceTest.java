@@ -9,13 +9,16 @@ import com.voyago.repository.BookingDao;
 import com.voyago.repository.BookingRepository;
 import com.voyago.repository.MemberRepository;
 import com.voyago.repository.RouteRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,7 +32,16 @@ class BookingServiceTest {
     @Mock BookingRepository bookings;
     @Mock RouteRepository routes;
     @Mock MemberRepository members;
-    @InjectMocks BookingServiceImpl service;
+    @Mock BookingEmailService emailService;
+
+    // 測試固定在 2026-01-01（UTC），讓「出發日不能早於今天」的驗證不受執行當下日期影響
+    private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
+    private BookingServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        service = new BookingServiceImpl(bookingDao, bookings, routes, members, clock, emailService);
+    }
 
     @Test
     void create_computesTotalPrice_andConfirms() {
@@ -39,7 +51,7 @@ class BookingServiceTest {
         when(routes.findById(2L)).thenReturn(Optional.of(r));
         when(bookings.save(any(Booking.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        BookingDto dto = service.create(1L, new BookingRequest(2L, 3, "2026-08-01"));
+        BookingDto dto = service.create(1L, new BookingRequest(2L, 3, "2026-02-01"));
 
         assertEquals(150000, dto.totalPrice());   // 50000 * 3
         assertEquals("PENDING", dto.status());    // 新訂單待付款，結帳後才轉 CONFIRMED
@@ -52,13 +64,31 @@ class BookingServiceTest {
         Route r = new Route(); r.setId(2L); r.setPrice(50000);
         Booking b = new Booking(); b.setId(5L); b.setMember(owner); b.setRoute(r);
         b.setStatus("PENDING"); b.setPeople(2); b.setTotalPrice(100000);
-        b.setTravelDate(java.time.LocalDate.parse("2026-08-01"));
+        b.setTravelDate(java.time.LocalDate.parse("2026-02-01"));
         when(bookings.findById(5L)).thenReturn(Optional.of(b));
         when(bookings.save(any(Booking.class))).thenAnswer(inv -> inv.getArgument(0));
 
         BookingDto dto = service.pay(1L, 5L);
 
         assertEquals("CONFIRMED", dto.status());
+    }
+
+    @Test
+    void pay_sendsConfirmationEmail_onlyOnce() {
+        Member owner = new Member(); owner.setId(1L);
+        Route r = new Route(); r.setId(2L); r.setPrice(50000);
+        Booking b = new Booking(); b.setId(5L); b.setMember(owner); b.setRoute(r);
+        b.setStatus("PENDING"); b.setPeople(2); b.setTotalPrice(100000);
+        b.setTravelDate(java.time.LocalDate.parse("2026-02-01"));
+        when(bookings.findById(5L)).thenReturn(Optional.of(b));
+        when(bookings.save(any(Booking.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.pay(1L, 5L);
+        verify(emailService, times(1)).sendBookingConfirmation(any(BookingConfirmationEmail.class));
+
+        // 已經是 CONFIRMED，再打一次 pay 不該重複寄信（冪等）
+        service.pay(1L, 5L);
+        verify(emailService, times(1)).sendBookingConfirmation(any(BookingConfirmationEmail.class));
     }
 
     @Test

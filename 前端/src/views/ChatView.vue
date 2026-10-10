@@ -1,11 +1,15 @@
 <script setup>
-import { nextTick, onMounted, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import api from "../api/api";
+import { createChatSocket } from "../api/wsChat";
 
 const messages = ref([]);
 const text = ref("");
 const sending = ref(false);
 const scroller = ref(null);
+const liveConnected = ref(false); // true：WS 即時連線中；false：走原本的 REST 傳送
+
+let socket = null;
 
 async function scrollToEnd() {
   await nextTick();
@@ -15,15 +19,37 @@ async function scrollToEnd() {
 onMounted(async () => {
   messages.value = await api.getChat();
   scrollToEnd();
+
+  // 即時聊天是 REST 之上的加強：連得上就即時推送，連不上就安靜地留在原本的 REST 流程
+  socket = createChatSocket({
+    onMessages: (list) => {
+      messages.value = list;
+      scrollToEnd();
+    },
+    onReady: () => {
+      liveConnected.value = true;
+    },
+    onUnavailable: () => {
+      liveConnected.value = false;
+    },
+  });
+});
+
+onBeforeUnmount(() => {
+  socket?.disconnect();
 });
 
 async function send() {
   if (!text.value.trim()) return;
   sending.value = true;
   try {
-    messages.value = await api.sendChat(text.value);
+    const content = text.value;
+    const sentOverWs = liveConnected.value && socket?.send(content);
+    if (!sentOverWs) {
+      messages.value = await api.sendChat(content);
+      scrollToEnd();
+    }
     text.value = "";
-    scrollToEnd();
   } finally {
     sending.value = false;
   }
@@ -41,7 +67,7 @@ async function send() {
           <span class="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">A</span>
           <div>
             <p class="text-sm font-bold">歐洲自助遊 客服中心</p>
-            <p class="flex items-center gap-1 text-xs text-brand-600"><span class="h-1.5 w-1.5 rounded-full bg-brand-500" />線上中</p>
+            <p class="flex items-center gap-1 text-xs text-brand-600"><span class="h-1.5 w-1.5 rounded-full bg-brand-500" />{{ liveConnected ? "即時連線中" : "線上中" }}</p>
           </div>
         </div>
 

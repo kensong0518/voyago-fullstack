@@ -8,6 +8,8 @@ export default defineConfig({
     proxy: {
       // 開發時把 /api 轉發到 Spring Boot 後端，避免 CORS 麻煩
       "/api": { target: "http://localhost:8080", changeOrigin: true },
+      // WebSocket 即時客服聊天（STOMP），開發時同樣轉發到後端
+      "/ws-chat": { target: "ws://localhost:8080", ws: true, changeOrigin: true },
     },
   },
   build: {

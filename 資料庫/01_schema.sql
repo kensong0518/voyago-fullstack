@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS booking (
   route_id     BIGINT     NOT NULL,
   people       INT        NOT NULL DEFAULT 1,
   travel_date  DATE       NOT NULL,
-  status       VARCHAR(20) NOT NULL DEFAULT 'CONFIRMED', -- PENDING/CONFIRMED/CANCELLED
+  status       VARCHAR(20) NOT NULL DEFAULT 'PENDING',   -- PENDING/CONFIRMED/CANCELLED，新訂單一律待付款
   total_price  INT        NOT NULL,
   created_at   DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at   DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -68,8 +68,23 @@ CREATE TABLE IF NOT EXISTS booking (
   KEY idx_booking_route (route_id),
   KEY idx_booking_travel_date (travel_date),
   KEY idx_booking_status (status),
-  CONSTRAINT fk_booking_member FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE CASCADE,
-  CONSTRAINT fk_booking_route  FOREIGN KEY (route_id)  REFERENCES route(id)  ON DELETE CASCADE
+  -- RESTRICT：訂單是交易紀錄，不能因為刪會員或刪行程就連帶消失；
+  -- 要刪會員／行程前，業務邏輯（MemberServiceImpl）會先檢查是否還有未取消的訂單。
+  CONSTRAINT fk_booking_member FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_booking_route  FOREIGN KEY (route_id)  REFERENCES route(id)  ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 收藏行程（會員 × 行程，收藏跟刪帳號/刪行程一起清掉沒關係，用 CASCADE）
+CREATE TABLE IF NOT EXISTS favorite (
+  id          BIGINT     NOT NULL AUTO_INCREMENT,
+  member_id   BIGINT     NOT NULL,
+  route_id    BIGINT     NOT NULL,
+  created_at  DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_favorite_member_route (member_id, route_id),
+  KEY idx_favorite_member (member_id),
+  CONSTRAINT fk_favorite_member FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE CASCADE,
+  CONSTRAINT fk_favorite_route  FOREIGN KEY (route_id)  REFERENCES route(id)  ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 客服訊息

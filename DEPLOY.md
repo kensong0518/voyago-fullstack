@@ -6,7 +6,7 @@
 
 | 元件 | 平台 | 免費 tier 限制 |
 |---|---|---|
-| 前端 (Vue SPA) | Netlify | 100 GB 流量/月，個人作品集綽綽有餘 |
+| 前端 (Vue SPA) | Netlify | 100 GB 流量/月，中小型流量綽綽有餘 |
 | 後端 (Spring Boot) | Render | 閒置 15 分鐘會睡，下次請求約 30 秒冷啟動 |
 | MySQL | TiDB Cloud Serverless | 25 GB 儲存、5 GB RU/月，MySQL 相容 |
 

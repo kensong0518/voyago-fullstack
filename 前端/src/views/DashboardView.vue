@@ -24,6 +24,9 @@ const deleteBusy = ref(false);
 const deleteErr = ref("");
 
 // ---- STAFF 後台：會員管理 ----
+const adminStats = ref(null);
+const statsErr = ref("");
+
 const memberList = ref([]);
 const memberPage = ref(0);
 const memberSize = 10;
@@ -71,9 +74,10 @@ onMounted(async () => {
 });
 
 async function cancel(b) {
-  if (!confirm(`確定要取消「${b.route.name}」這筆訂單嗎？取消後將直接刪除、不再顯示。`)) return;
+  if (!confirm(`確定要取消「${b.route.name}」這筆訂單嗎？取消後將不再顯示於訂單列表。`)) return;
   await api.cancelBooking(b.id);
-  bookings.value = bookings.value.filter((x) => x.id !== b.id);   // 取消即刪除
+  // 後端是狀態轉為 CANCELLED（保留紀錄供稽核），前端這裡只是把它從目前畫面上移除
+  bookings.value = bookings.value.filter((x) => x.id !== b.id);
 }
 
 async function saveProfile() {
@@ -88,7 +92,7 @@ async function saveProfile() {
 }
 
 async function deleteMyAccount() {
-  if (!confirm("⚠️ 確定要刪除你的帳號嗎？\n\n所有訂單、客服訊息會一起刪除，無法復原。")) return;
+  if (!confirm("⚠️ 確定要刪除你的帳號嗎？\n\n客服訊息會一併刪除、無法復原。若尚有未取消的訂單，需先取消才能刪除帳號。")) return;
   if (!confirm("再次確認：真的要刪除帳號？")) return;
   deleteErr.value = ""; deleteBusy.value = true;
   try {
@@ -112,9 +116,19 @@ async function loadMembers() {
   } finally { memberBusy.value = false; }
 }
 
+async function loadStats() {
+  statsErr.value = "";
+  try {
+    adminStats.value = await api.getAdminStats();
+  } catch (e) {
+    statsErr.value = e.message;
+  }
+}
+
 async function openMembersTab() {
   tab.value = "members";
   if (memberList.value.length === 0) await loadMembers();
+  if (!adminStats.value) await loadStats();
 }
 
 function changePage(delta) {
@@ -254,6 +268,30 @@ async function deleteOneMember(m) {
         <!-- 會員管理（STAFF 限定） -->
         <div v-else-if="tab === 'members' && auth.isStaff">
           <h2 class="text-lg font-bold">👥 會員管理</h2>
+
+          <!-- 儀表板統計 -->
+          <p v-if="statsErr" class="card mt-4 p-4 text-sm text-red-600">{{ statsErr }}</p>
+          <div v-else-if="adminStats" class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="card p-4">
+              <p class="text-xs text-ink-400">總會員數</p>
+              <p class="mt-1 text-2xl font-extrabold">{{ adminStats.totalMembers }}</p>
+              <p class="mt-0.5 text-xs text-brand-600">本月新增 {{ adminStats.newMembersThisMonth }}</p>
+            </div>
+            <div class="card p-4">
+              <p class="text-xs text-ink-400">待付款訂單</p>
+              <p class="mt-1 text-2xl font-extrabold text-amber-600">{{ adminStats.pendingBookings }}</p>
+            </div>
+            <div class="card p-4">
+              <p class="text-xs text-ink-400">已付款訂單</p>
+              <p class="mt-1 text-2xl font-extrabold text-brand-700">{{ adminStats.confirmedBookings }}</p>
+              <p class="mt-0.5 text-xs text-ink-400">已取消 {{ adminStats.cancelledBookings }}</p>
+            </div>
+            <div class="card p-4">
+              <p class="text-xs text-ink-400">總營收（已付款）</p>
+              <p class="mt-1 text-2xl font-extrabold text-brand-700">{{ twd(adminStats.totalRevenue) }}</p>
+            </div>
+          </div>
+          <p v-else class="mt-4 text-sm text-ink-400">統計載入中…</p>
 
           <!-- 新增會員 -->
           <details class="card mt-4 p-5" open>

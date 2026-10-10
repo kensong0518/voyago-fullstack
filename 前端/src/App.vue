@@ -19,7 +19,11 @@ watch(() => auth.user?.email, (email) => fav.bindUser(email), { immediate: true 
     <DemoBanner position="top" />
     <NavBar />
     <main class="flex-1">
-      <RouterView />
+      <RouterView v-slot="{ Component, route: current }">
+        <Transition name="page" mode="out-in">
+          <component :is="Component" :key="current.path" />
+        </Transition>
+      </RouterView>
     </main>
     <AppFooter />
     <DemoBanner position="bottom" />

@@ -41,6 +41,22 @@ services:
       - key: GOOGLE_CLIENT_ID
         sync: false
         # 留空也沒關係，Google 登入按鈕會自動隱藏
+      - key: TRUSTED_PROXIES
+        sync: false
+        # 若 Render 的 edge 本身會在轉發給容器前附上 X-Forwarded-For，填入該來源 IP 才會被信任；
+        # 留空＝一律用實際連線位址限流，不信任任何 X-Forwarded-For
+      - key: MAIL_HOST
+        sync: false
+        # 留空＝訂單確認信功能安全跳過，不影響付款主流程。例：smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+        # 例： noreply@yourdomain.com
 
       # ---------- JVM tuning（容器記憶體 512MB 友善） ----------
       - key: JAVA_TOOL_OPTIONS

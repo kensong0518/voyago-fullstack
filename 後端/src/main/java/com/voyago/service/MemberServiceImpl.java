@@ -5,6 +5,7 @@ import com.voyago.dto.MemberDto;
 import com.voyago.dto.PageResult;
 import com.voyago.dto.ProfileUpdateRequest;
 import com.voyago.entity.Member;
+import com.voyago.repository.BookingRepository;
 import com.voyago.repository.MemberDao;
 import com.voyago.repository.MemberRepository;
 import org.springframework.http.HttpStatus;
@@ -22,11 +23,14 @@ public class MemberServiceImpl implements MemberService {
     private final MemberRepository members;
     private final MemberDao memberDao;
     private final PasswordEncoder encoder;
+    private final BookingRepository bookings;
 
-    public MemberServiceImpl(MemberRepository members, MemberDao memberDao, PasswordEncoder encoder) {
+    public MemberServiceImpl(MemberRepository members, MemberDao memberDao, PasswordEncoder encoder,
+                             BookingRepository bookings) {
         this.members = members;
         this.memberDao = memberDao;
         this.encoder = encoder;
+        this.bookings = bookings;
     }
 
     @Override
@@ -83,6 +87,7 @@ public class MemberServiceImpl implements MemberService {
         }
         Member m = members.findById(targetId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到會員"));
+        requireNoActiveBookings(targetId);
         members.delete(m);
     }
 
@@ -91,6 +96,20 @@ public class MemberServiceImpl implements MemberService {
     public void deleteSelf(Long memberId) {
         Member m = members.findById(memberId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到會員"));
+        requireNoActiveBookings(memberId);
         members.delete(m);
+    }
+
+    /**
+     * 刪除會員前先擋下還有效（未取消）訂單的帳號。
+     * 訂單對 member 的外鍵是 ON DELETE RESTRICT（見 01_schema.sql），
+     * 這裡在業務層先攔一次是為了給使用者看得懂的錯誤訊息，而不是讓它一路撞到
+     * DB 的外鍵限制、變成語意不明的 500。
+     */
+    private void requireNoActiveBookings(Long memberId) {
+        if (bookings.existsByMemberIdAndStatusNot(memberId, "CANCELLED")) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "此帳號尚有未取消的訂單，請先取消或完成後再刪除帳號");
+        }
     }
 }

@@ -5,6 +5,20 @@
 html { scroll-behavior: smooth; }
 body { @apply bg-white text-ink-900 antialiased; font-family: theme('fontFamily.sans'); }
 
+/* 換頁轉場：離開先輕微上移淡出，新頁再輕微從下淡入，呼應使用者「往前走」的方向感 */
+.page-enter-active { transition: opacity .22s ease, transform .22s ease; }
+.page-leave-active { transition: opacity .14s ease, transform .14s ease; }
+.page-enter-from { opacity: 0; transform: translateY(10px); }
+.page-leave-to { opacity: 0; transform: translateY(-6px); }
+
+/* 資料載入完成時的淡入，取代內容瞬間跳出 */
+.fade-enter-active { transition: opacity .35s ease, transform .35s ease; }
+.fade-enter-from { opacity: 0; transform: translateY(6px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active, .page-leave-active, .fade-enter-active { transition: none !important; }
+}
+
 @layer components {
   .container-x { @apply mx-auto w-full max-w-6xl px-5 sm:px-6 lg:px-8; }
   .btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition active:scale-[.98] disabled:opacity-60 disabled:pointer-events-none cursor-pointer; }

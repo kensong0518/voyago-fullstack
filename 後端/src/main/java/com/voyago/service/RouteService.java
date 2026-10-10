@@ -4,7 +4,7 @@ import com.voyago.dto.PageResult;
 import com.voyago.dto.RouteDto;
 import java.util.List;
 
-/** 行程服務層介面（緯育課程慣例：介面 + Impl 分離）。 */
+/** 行程服務層介面（介面 + Impl 分離，便於替換實作與測試）。 */
 public interface RouteService {
     List<RouteDto> list(String q, String tag, String sort);
     PageResult<RouteDto> listPaged(String q, String tag, String sort, int page, int size);

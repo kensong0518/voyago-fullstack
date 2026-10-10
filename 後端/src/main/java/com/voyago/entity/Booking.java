@@ -26,7 +26,7 @@ public class Booking {
     private LocalDate travelDate;
 
     @Column(nullable = false, length = 20)
-    private String status = "CONFIRMED";
+    private String status = "PENDING";   // 新建立訂單預設待付款，呼叫 /pay 才轉 CONFIRMED
 
     @Column(name = "total_price", nullable = false)
     private Integer totalPrice;

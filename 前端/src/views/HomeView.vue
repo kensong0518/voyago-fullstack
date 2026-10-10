@@ -5,6 +5,7 @@ import RouteCard from "../components/RouteCard.vue";
 import { pickReviews, avatarColor } from "../data/content";
 
 const all = ref([]);
+const loading = ref(true);
 const featured = computed(() => all.value.filter((r) => r.featured).slice(0, 3));
 const popular = computed(() => all.value.filter((r) => !r.featured).slice(0, 6));
 
@@ -42,7 +43,10 @@ function subscribe() {
   subscribed.value = true;
 }
 
-onMounted(async () => { all.value = await api.getRoutes({ sort: "featured" }); });
+onMounted(async () => {
+  try { all.value = await api.getRoutes({ sort: "featured" }); }
+  finally { loading.value = false; }
+});
 </script>
 
 <template>
@@ -72,16 +76,21 @@ onMounted(async () => { all.value = await api.getRoutes({ sort: "featured" }); }
   <section class="container-x py-16 sm:py-20">
     <h2 class="text-2xl font-extrabold sm:text-3xl">熱門目的地</h2>
     <p class="mt-2 text-ink-500">挑一個國家，開始你的歐洲冒險。</p>
-    <div class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-      <RouterLink v-for="d in destinations" :key="d.country" :to="`/tours`"
-        class="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700">
-        <img :src="d.imageUrl" :alt="d.country" loading="lazy" decoding="async"
-          @error="(e)=>(e.target.style.display='none')"
-          class="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
-        <div class="absolute inset-0 bg-gradient-to-t from-ink-950/80 to-transparent" />
-        <span class="absolute inset-x-0 bottom-3 text-center text-lg font-bold text-white">{{ d.country }}</span>
-      </RouterLink>
-    </div>
+    <Transition name="fade" mode="out-in">
+      <div v-if="loading" key="skeleton" class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div v-for="i in 6" :key="i" class="aspect-[3/4] animate-pulse rounded-2xl bg-ink-100" />
+      </div>
+      <div v-else key="data" class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <RouterLink v-for="d in destinations" :key="d.country" :to="`/tours`"
+          class="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700">
+          <img :src="d.imageUrl" :alt="d.country" loading="lazy" decoding="async"
+            @error="(e)=>(e.target.style.display='none')"
+            class="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+          <div class="absolute inset-0 bg-gradient-to-t from-ink-950/80 to-transparent" />
+          <span class="absolute inset-x-0 bottom-3 text-center text-lg font-bold text-white">{{ d.country }}</span>
+        </RouterLink>
+      </div>
+    </Transition>
   </section>
 
   <!-- 精選行程 -->
@@ -91,7 +100,15 @@ onMounted(async () => { all.value = await api.getRoutes({ sort: "featured" }); }
         <div><h2 class="text-2xl font-extrabold sm:text-3xl">本月精選行程</h2><p class="mt-2 text-ink-500">編輯團隊嚴選，最受旅人喜愛的歐洲路線。</p></div>
         <RouterLink to="/tours" class="hidden text-sm font-semibold text-brand-700 hover:underline sm:block">查看全部 →</RouterLink>
       </div>
-      <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"><RouteCard v-for="r in featured" :key="r.id" :route="r" /></div>
+      <Transition name="fade" mode="out-in">
+        <div v-if="loading" key="skeleton" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div v-for="i in 3" :key="i" class="card overflow-hidden">
+            <div class="aspect-[4/3] animate-pulse bg-ink-100" />
+            <div class="space-y-2 p-4"><div class="h-4 w-2/3 animate-pulse rounded bg-ink-100" /><div class="h-3 w-full animate-pulse rounded bg-ink-100" /></div>
+          </div>
+        </div>
+        <div v-else key="data" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"><RouteCard v-for="r in featured" :key="r.id" :route="r" /></div>
+      </Transition>
     </div>
   </section>
 
@@ -120,7 +137,15 @@ onMounted(async () => { all.value = await api.getRoutes({ sort: "featured" }); }
   <!-- 熱門路線 -->
   <section class="container-x py-16 sm:py-20">
     <h2 class="text-2xl font-extrabold sm:text-3xl">熱門路線</h2>
-    <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"><RouteCard v-for="r in popular" :key="r.id" :route="r" /></div>
+    <Transition name="fade" mode="out-in">
+      <div v-if="loading" key="skeleton" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-for="i in 6" :key="i" class="card overflow-hidden">
+          <div class="aspect-[4/3] animate-pulse bg-ink-100" />
+          <div class="space-y-2 p-4"><div class="h-4 w-2/3 animate-pulse rounded bg-ink-100" /><div class="h-3 w-full animate-pulse rounded bg-ink-100" /></div>
+        </div>
+      </div>
+      <div v-else key="data" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"><RouteCard v-for="r in popular" :key="r.id" :route="r" /></div>
+    </Transition>
     <div class="mt-10 text-center"><RouterLink to="/tours" class="btn-primary px-7 py-3">瀏覽所有行程</RouterLink></div>
   </section>
 

@@ -6,7 +6,7 @@ import java.util.Optional;
 
 /**
  * 行程資料存取層（DAO）。
- * 依緯育課程慣例，以 Criteria 做動態複合查詢、分頁與計數。
+ * 以 Criteria 做動態複合查詢、分頁與計數。
  */
 public interface RouteDao {
     Optional<Route> findBySlug(String slug);

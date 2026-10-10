@@ -45,6 +45,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/ws-chat/**").permitAll()   // WS 握手走獨立的 JWT 驗證（JwtHandshakeInterceptor），非一般 header
                 .requestMatchers(HttpMethod.GET, "/api/routes/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()

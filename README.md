@@ -6,11 +6,11 @@
 ![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?logo=springboot&logoColor=white)
 ![MySQL 8](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
 
-這是我為了練習「一個功能從資料庫一路寫到畫面」而做的旅遊行程預訂平台。整包是前後端分離：Vue 3 的單頁前端用 axios 打 Spring Boot 的 REST API，資料存在 MySQL。除了 CRUD，我刻意把幾件在課堂範例裡常被跳過、但實務會遇到的東西補齊——帳密登入之外接了 Google 登入、密碼用 BCrypt、登入端點做了限流、熱門查詢加了快取、也寫了單元測試接 CI。
+Voyago 是一個前後端分離的旅遊行程預訂平台：Vue 3 單頁前端透過 axios 呼叫 Spring Boot REST API，資料存於 MySQL。除了基本 CRUD，系統也處理了幾個正式產品常見但容易被忽略的需求——帳密登入之外整合 Google 登入、密碼以 BCrypt 雜湊、登入端點做限流、熱門查詢加快取、並搭配單元測試與 CI。
 
-線上可以直接玩：<https://gleeful-valkyrie-494d4e.netlify.app>
+線上示範：<https://gleeful-valkyrie-494d4e.netlify.app>
 
-> 展示站跑的是「純前端示範模式」。因為免費後端常常睡著、Demo 一睡就變死連結，所以我讓前端在沒有後端時改用內建假資料（存在 localStorage），註冊、登入、搜尋、下訂、客服對話這些流程照樣走得完。想看真正的三層架構，照下面的[本機啟動](#快速開始)跑就行。
+> 線上站台目前執行在「前端示範模式」。由於免費層後端常因閒置而休眠，為避免連結失效，前端在偵測不到後端時會改用內建假資料（存於 localStorage），註冊、登入、搜尋、下訂、客服對話等流程仍可完整操作。要體驗完整三層架構，請依下方[快速開始](#快速開始)在本機啟動。
 
 ```
 瀏覽器 (Vue 3 SPA)  ──axios / JWT──▶  Spring Boot REST API  ──JPA / MyBatis-Plus──▶  MySQL 8
@@ -29,14 +29,14 @@ flowchart LR
 
 ---
 
-## 這個專案想證明什麼
+## 設計重點
 
-作品集裡最容易被看穿的，就是「只有 CRUD、跑得動但沒有工程判斷」。所以我挑了幾個題目，重點不是功能多，而是每個決定背後有沒有理由：
+系統的重點不在功能數量，而是每個技術決定背後有沒有明確理由：
 
 - 登入不是只有帳密，還要能擋暴力破解、能接第三方、能水平擴展 → JWT + BCrypt + Bucket4j 限流 + Google ID Token 後端驗證。
 - 查詢不是能跑就好，列表頁不能一打開就噴出十幾條 SQL → LAZY + fetch join 解 N+1，熱門資料上 Caffeine 快取。
 - 權限不能靠前端藏按鈕 → 後端用 `@PreAuthorize` 強制，STAFF 專屬端點前端就算被繞過也擋得住。
-- Demo 不能因為後端沒錢掛雲端就變死站 → 前端內建 mock fallback，同一套 UI 與 API 介面，離線也能展示。
+- 前端示範模式不應依賴後端是否在線 → 內建 mock fallback，同一套 UI 與 API 介面，離線也能展示。
 
 ---
 
@@ -45,22 +45,22 @@ flowchart LR
 | 層 | 用了什麼 |
 | --- | --- |
 | 前端 | Vue 3（Composition API）、Vite、Vue Router、Pinia、axios、Tailwind CSS |
-| 後端 | Spring Boot 3、Spring Security、Spring Data JPA、MyBatis-Plus、JWT（jjwt）、Google API Client、Bucket4j、Caffeine、Actuator |
+| 後端 | Spring Boot 3、Spring Security、Spring Data JPA、MyBatis-Plus、JWT（jjwt）、Google API Client、Bucket4j、Caffeine、Actuator、WebSocket（STOMP，即時客服聊天）、Spring Mail（非同步訂單確認信）、H2（測試用） |
 | 資料庫 | MySQL 8（utf8mb4、InnoDB、外鍵 + 複合索引） |
 | 驗證 | JWT Bearer Token、BCrypt 密碼雜湊、Google ID Token 後端驗證 |
 | 測試 | JUnit 5、Mockito、Maven Surefire |
 | 部署 | Docker / docker-compose、Nginx、GitHub Actions、Netlify、Render（`render.yaml`） |
 | API 文件 | springdoc-openapi（Swagger UI） |
 
-會在同一個專案裡同時用 Spring Data JPA 和 MyBatis-Plus，是想比較兩套 ORM 的手感（後面「設計取捨」有寫理由），不是為了炫技疊料。
+同一個專案裡並行 Spring Data JPA 和 MyBatis-Plus 兩套 ORM，是刻意的技術選型比較（理由見下方「設計取捨」），不是堆疊技術清單。
 
 ---
 
 ## 功能
 
-一般會員能做的事：註冊登入（帳密或 Google）、搜尋與篩選行程（關鍵字、標籤、多種排序、分頁）、看行程詳情（圖庫、每日安排）、下訂單（選日期人數、自動算總價、過去的日期會被擋）、在會員中心管訂單和個資、刪帳號要雙重確認，還有一個簡單的客服對話介面。
+一般會員能做的事：註冊登入（帳密或 Google）、搜尋與篩選行程（關鍵字、標籤、多種排序、分頁）、看行程詳情（圖庫、每日安排）、收藏行程（後端持久化，換裝置也看得到，連不上後端時退回本機暫存）、下訂單（選日期人數、自動算總價、過去的日期會被擋）、模擬結帳（轉已付款並背景寄送確認信）、在會員中心管訂單和個資、刪帳號要雙重確認，還有即時客服對話（WebSocket 推播，連不上會自動退回原本的 REST 輪詢）。
 
-客服／管理人員（STAFF）多了一塊會員管理面板：可以用姓名 / Email / 電話搜尋會員、分頁瀏覽、新增會員（能指定角色、有密碼強度規則）、刪除會員。刪除會員時後端會擋住「刪掉自己」，避免把管理員全鎖死。
+客服／管理人員（STAFF）多了一塊會員管理面板：最上方是儀表板統計卡片（總會員數、本月新增、訂單狀態分布、總營收），下面是會員管理——可以用姓名 / Email / 電話搜尋會員、分頁瀏覽、新增會員（能指定角色、有密碼強度規則）、刪除會員。刪除會員時後端會擋住「刪掉自己」，避免把管理員全鎖死。
 
 工程上幾個細節：前端的示範模式（`VITE_DEMO_ONLY`）會在頁面上下顯示聲明橫幅、axios 攔截器統一處理 401（清掉 token 導回登入）、後端開 `/actuator/health` 給 Docker 和雲端平台探活。
 
@@ -124,9 +124,9 @@ MySQL 第一次啟動會自動跑 `資料庫/` 裡的建表和種子 SQL，資�
 mysql -u root -p < 資料庫/01_schema.sql
 mysql -u root -p < 資料庫/02_seed.sql
 
-# 後端（:8080）預設 root / 123456，可用環境變數覆蓋
+# 後端（:8080），需先設定環境變數
 cd 後端
-export DB_USER=root DB_PASSWORD=你的密碼   # Windows 用 set
+export DB_USER=root DB_PASSWORD=你的密碼 JWT_SECRET=至少32位元組的隨機字串   # Windows 用 set
 mvn spring-boot:run
 
 # 前端（:5173，已代理 /api → 8080 免處理 CORS）
@@ -173,11 +173,16 @@ VITE_DEMO_ONLY=true npm run dev
 | GET | `/api/bookings` | 我的訂單（fetch join 避 N+1） | 登入 |
 | POST | `/api/bookings` | 建立訂單（過去日期 / 超量擋下） | 登入 |
 | DELETE | `/api/bookings/{id}` | 取消訂單 | 本人 |
-| GET / POST | `/api/chat` | 客服訊息讀取 / 送出 | 登入 |
+| GET / POST | `/api/chat` | 客服訊息讀取 / 送出（REST，WS 連不上時的 fallback） | 登入 |
+| WS | `/ws-chat`（STOMP，`?token=` 帶 JWT） | 即時客服聊天：訂閱 `/user/queue/chat`、送到 `/app/chat.send` | 登入 |
+| POST | `/api/bookings/{id}/pay` | 模擬結帳（轉 CONFIRMED，觸發非同步確認信） | 本人 |
+| GET | `/api/favorites` | 我的收藏（含行程資料） | 登入 |
+| POST / DELETE | `/api/favorites/{routeId}` | 收藏 / 取消收藏（冪等） | 登入 |
 | PUT / DELETE | `/api/members/me` | 編輯 / 刪除自己 | 登入 |
 | GET | `/api/members?q=&page=&size=` | 會員搜尋分頁 | STAFF |
 | POST | `/api/members` | 新增會員 | STAFF |
 | DELETE | `/api/members/{id}` | 刪除會員（不能刪自己） | STAFF |
+| GET | `/api/admin/stats` | 後台儀表板統計（會員數、訂單狀態分布、總營收） | STAFF |
 | GET | `/actuator/health` | 健康檢查（只開 health/info） | 公開 |
 
 ---
@@ -189,6 +194,8 @@ erDiagram
     MEMBER ||--o{ BOOKING : "下訂"
     ROUTE  ||--o{ BOOKING : "被預訂"
     MEMBER ||--o{ MESSAGE : "對話"
+    MEMBER ||--o{ FAVORITE : "收藏"
+    ROUTE  ||--o{ FAVORITE : "被收藏"
 
     MEMBER {
         bigint id PK
@@ -206,15 +213,21 @@ erDiagram
     }
     BOOKING {
         bigint id PK
-        bigint member_id FK "ON DELETE CASCADE"
-        bigint route_id FK "ON DELETE CASCADE"
+        bigint member_id FK "ON DELETE RESTRICT"
+        bigint route_id FK "ON DELETE RESTRICT"
         date travel_date
-        varchar status "CONFIRMED / CANCELLED"
+        varchar status "PENDING / CONFIRMED / CANCELLED"
     }
     MESSAGE {
         bigint id PK
         bigint member_id FK "ON DELETE CASCADE"
         varchar sender "MEMBER / STAFF"
+    }
+    FAVORITE {
+        bigint id PK
+        bigint member_id FK "ON DELETE CASCADE"
+        bigint route_id FK "ON DELETE CASCADE"
+        UK "(member_id, route_id) 防重複收藏"
     }
 ```
 
@@ -234,13 +247,13 @@ erDiagram
 
 - 無狀態驗證：`SessionCreationPolicy.STATELESS`，用 JWT 取代 Session。`JwtAuthFilter` 解 Bearer Token 注入 `SecurityContext`，天然免疫 CSRF，後端也能水平擴展。
 - 密碼：BCrypt 雜湊儲存，規則「8+ 字元、含英文與數字」前後端都驗。
-- 擋暴力破解：`AuthRateLimitFilter`（Bucket4j token bucket）對登入 / 註冊 / Google 端點做 per-IP 限流，支援反代後的 `X-Forwarded-For`。
+- 擋暴力破解：`AuthRateLimitFilter`（Bucket4j token bucket）對登入 / 註冊 / Google 端點做 per-IP 限流；信任的代理層由 `app.security.trusted-proxies` 設定，避免用戶端自帶 `X-Forwarded-For` 繞過限流。
 - 方法級授權：`@EnableMethodSecurity` + `@PreAuthorize("hasRole('STAFF')")`，管理端點由後端強制，不靠前端隱藏。
 - 第三方登入不信前端：Google ID Token 由後端 `GoogleIdTokenVerifier` 驗簽章和 audience，首次登入自動建帳號。
 - DTO 與 Entity 分離：API 只回 DTO，密碼雜湊這種欄位永遠不外洩。
 - 錯誤不洩內部：全域例外處理器記 log 但不回 stack trace；Actuator 只開 health/info。
 - 前端標頭：Nginx 設 CSP、`X-Frame-Options`、`Referrer-Policy`、`X-Content-Type-Options`。
-- 沒有硬編碼密鑰：DB 帳密、`JWT_SECRET`、Google Client ID 全走環境變數，`.env.example` 列了清單。
+- 沒有硬編碼密鑰：DB 帳密、`JWT_SECRET`、Google Client ID 全走環境變數，正式環境未設定會直接拒絕啟動（fail-fast），避免誤用預設值上線。
 
 ---
 
@@ -266,7 +279,10 @@ cd 後端 && mvn test    # JUnit 5 + Mockito
 | --- | --- |
 | `JwtUtilTest` | JWT 簽發驗證、過期 / 被竄改要拒絕 |
 | `RouteServiceTest` | 列表查詢、排序、slug 查詢、分頁總頁數 |
-| `BookingServiceTest` | 訂單金額計算、過去日期驗證、權限檢查 |
+| `BookingServiceTest` | 訂單金額計算、日期驗證（以固定 `Clock` 注入，不受執行當下日期影響）、權限檢查、付款成功會觸發一次（且僅一次）確認信 |
+| `FavoriteServiceTest` | 新增收藏、重複收藏的冪等處理、取消收藏 |
+| `AdminStatsServiceTest` | 後台統計彙總邏輯，含「本月新增會員」的時間邊界（固定 `Clock`） |
+| `ApiPermissionIntegrationTest` | Controller 層整合測試，用 MockMvc + H2（`test` profile）跑完整的 Spring Security filter chain，驗證權限矩陣：公開端點免登入、一般端點（訂單、收藏）需登入、後台端點（會員管理、統計）需 `STAFF` 角色 |
 
 CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify` 和前端 `npm ci && npm run build`，上傳測試報告和建置產物，同分支重複觸發會自動取消舊任務。
 
@@ -292,9 +308,9 @@ CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify` 和前端 
 
 **為什麼 JWT 不用 Session。** 無狀態，後端加節點不用共享 Session store；Token 放 `Authorization: Bearer`，順便躲掉 CSRF。
 
-**為什麼同時用兩套 ORM。** Booking / Message / Member 用 JPA + Criteria API（型別安全的動態查詢、fetch join）；Route 用 MyBatis-Plus（`LambdaQueryWrapper` + 分頁外掛）。真正寫過才知道：JPA 的關聯映射很省事但複雜查詢容易失控，MyBatis-Plus 對 SQL 掌控度高但關聯要自己接。放在一起就是想講清楚這個取捨。
+**為什麼同時用兩套 ORM。** Booking / Message / Member 用 JPA + Criteria API（型別安全的動態查詢、fetch join）；Route 用 MyBatis-Plus（`LambdaQueryWrapper` + 分頁外掛）。JPA 的關聯映射省事但複雜查詢容易失控，MyBatis-Plus 對 SQL 掌控度高但關聯要自己接；兩者並存是刻意比較，正式產品會收斂成一套。
 
-**為什麼做示範模式。** 作品集網站最常見的死法就是「後端沒錢掛著、連結一點就 404」。與其這樣，不如讓前端在偵測不到後端時優雅降級到假資料，順便也是一個「graceful degradation」的實例。
+**為什麼做示範模式。** 免費層後端常因閒置休眠，連結一點就逾時。與其這樣，不如讓前端在偵測不到後端時優雅降級到假資料，這也是「graceful degradation」的一個實例。
 
 **限流為什麼放 Filter 不放 Controller。** 在進 Spring MVC 之前就擋掉超量請求，省下反序列化和後面一整串業務處理的成本。
 
@@ -302,13 +318,14 @@ CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify` 和前端 
 
 ## 已知限制與下一步
 
-坦白講這是作品集專案，有些地方是刻意收斂的，不是沒想到：
+有些地方是刻意收斂範圍，不是沒想到：
 
-- 客服目前只是訊息存取，沒有真正的即時推播（WebSocket / SSE 是下一步）。
-- 沒有金流。訂單只到「建立 / 取消」，真的接金流要再處理狀態機和對帳。
-- 測試集中在 Service 層的核心邏輯，還沒補 Controller 層的整合測試和前端的 E2E。
+- 客服聊天走 STOMP over WebSocket 即時推播（`/ws-chat`，JWT 走 query string 驗證），但前後端分離部署（Netlify + Render）時，Netlify 的 redirect 代理不保證支援跨網域 WebSocket upgrade，這種拓樸下需設定 `VITE_WS_BASE` 直連後端 `wss://`，細節見 `netlify.toml` 註解；docker-compose 或後端同源部署則不受影響。
+- 沒有金流。訂單只到「建立 / 取消 / 標記付款」，真的接金流要再處理狀態機和對帳；付款成功後會非同步寄送確認信（`spring-boot-starter-mail`），沒設定 `MAIL_HOST` 時安全跳過，不影響付款流程。
+- Controller 層已補 `MockMvc` + H2 的權限矩陣整合測試，但還沒有前端 E2E。
 - 圖片走外部連結加 `onerror` 備援，正式上線應該換成自己的物件儲存 + CDN。
 - 示範模式的假資料存在 localStorage，換裝置或清快取就沒了，這是刻意的（Demo 用）。
+- 後台統計在示範模式下是掃這個瀏覽器裡所有帳號的 mock 訂單資料彙總（demo 沒有真的跨帳號資料庫），正式環境接後端後是真正的 SQL 彙總查詢。
 
 ---
 
@@ -316,4 +333,4 @@ CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify` 和前端 
 
 MIT License，見 [LICENSE](LICENSE)。
 
-本專案是個人作品集，線上站為示範性質，不是真的旅遊預訂服務。
+線上站台為示範性質，非真實旅遊預訂服務。

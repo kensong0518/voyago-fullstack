@@ -26,7 +26,7 @@ public class RouteController {
         return routes.list(q, tag, sort);
     }
 
-    /** 分頁查詢（緯育慣例：回傳內容 + 頁碼 + 總頁數 + 總筆數）。 */
+    /** 分頁查詢（回傳內容 + 頁碼 + 總頁數 + 總筆數）。 */
     @GetMapping("/page")
     public PageResult<RouteDto> listPaged(
             @RequestParam(defaultValue = "") String q,

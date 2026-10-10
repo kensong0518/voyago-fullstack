@@ -147,19 +147,21 @@ onMounted(async () => {
   </section>
 
   <section class="container-x py-12">
-    <div v-if="loading" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <div v-for="i in 6" :key="i" class="card overflow-hidden">
-        <div class="aspect-[4/3] animate-pulse bg-ink-100" />
-        <div class="space-y-2 p-4"><div class="h-4 w-2/3 animate-pulse rounded bg-ink-100" /><div class="h-3 w-full animate-pulse rounded bg-ink-100" /></div>
+    <Transition name="fade" mode="out-in">
+      <div v-if="loading" key="skeleton" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-for="i in 6" :key="i" class="card overflow-hidden">
+          <div class="aspect-[4/3] animate-pulse bg-ink-100" />
+          <div class="space-y-2 p-4"><div class="h-4 w-2/3 animate-pulse rounded bg-ink-100" /><div class="h-3 w-full animate-pulse rounded bg-ink-100" /></div>
+        </div>
       </div>
-    </div>
-    <div v-else-if="filtered.length === 0" class="py-20 text-center text-ink-500">
-      <p class="text-5xl">🧭</p>
-      <p class="mt-4">找不到符合條件的行程，試試放寬篩選條件吧。</p>
-      <button @click="clearAll" class="btn-outline mt-4">清除所有篩選</button>
-    </div>
-    <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <RouteCard v-for="r in filtered" :key="r.slug" :route="r" />
-    </div>
+      <div v-else-if="filtered.length === 0" key="empty" class="py-20 text-center text-ink-500">
+        <p class="text-5xl">🧭</p>
+        <p class="mt-4">找不到符合條件的行程，試試放寬篩選條件吧。</p>
+        <button @click="clearAll" class="btn-outline mt-4">清除所有篩選</button>
+      </div>
+      <div v-else key="grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <RouteCard v-for="r in filtered" :key="r.slug" :route="r" />
+      </div>
+    </Transition>
   </section>
 </template>

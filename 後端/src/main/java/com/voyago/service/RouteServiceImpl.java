@@ -13,8 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 /**
- * 行程服務層實作。依緯育課程慣例：
- * 把請求參數整理成查詢條件、計算分頁總頁數、呼叫 DAO，再轉成 DTO 回傳。
+ * 行程服務層實作：把請求參數整理成查詢條件、計算分頁總頁數、呼叫 DAO，再轉成 DTO 回傳。
  */
 @Service
 @Transactional(readOnly = true)

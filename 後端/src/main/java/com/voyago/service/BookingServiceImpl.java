@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -27,13 +28,18 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookings;        // 寫入（內建交易）
     private final RouteRepository routes;
     private final MemberRepository members;
+    private final Clock clock;                       // 可注入固定時間，方便測試
+    private final BookingEmailService emailService;
 
     public BookingServiceImpl(BookingDao bookingDao, BookingRepository bookings,
-                              RouteRepository routes, MemberRepository members) {
+                              RouteRepository routes, MemberRepository members, Clock clock,
+                              BookingEmailService emailService) {
         this.bookingDao = bookingDao;
         this.bookings = bookings;
         this.routes = routes;
         this.members = members;
+        this.clock = clock;
+        this.emailService = emailService;
     }
 
     @Override
@@ -61,7 +67,7 @@ public class BookingServiceImpl implements BookingService {
         } catch (DateTimeParseException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "出發日期格式錯誤（須為 YYYY-MM-DD）");
         }
-        if (travelDate.isBefore(LocalDate.now())) {
+        if (travelDate.isBefore(LocalDate.now(clock))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "出發日期不能早於今天");
         }
         Member member = members.findById(memberId)
@@ -88,10 +94,15 @@ public class BookingServiceImpl implements BookingService {
         if (!b.getMember().getId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限支付此訂單");
         }
-        // 冪等：已付款的訂單直接回傳，不重複處理
+        // 冪等：已付款的訂單直接回傳，不重複處理，也不重複寄確認信
         if (!"CONFIRMED".equals(b.getStatus())) {
             b.setStatus("CONFIRMED");
             bookings.save(b);
+            // 在交易內（還有 Hibernate session）把 LAZY 關聯需要的欄位讀成純值，
+            // 再丟給 @Async 的 BookingEmailService——那邊是另一條執行緒，沒有 session。
+            emailService.sendBookingConfirmation(new BookingConfirmationEmail(
+                    b.getId(), b.getMember().getEmail(), b.getMember().getName(),
+                    b.getRoute().getName(), b.getTravelDate(), b.getPeople(), b.getTotalPrice()));
         }
         return BookingDto.from(b);
     }
@@ -104,7 +115,11 @@ public class BookingServiceImpl implements BookingService {
         if (!b.getMember().getId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限取消此訂單");
         }
-        bookings.delete(b);   // 取消即刪除，訂單列表不再顯示
-
+        // 取消是狀態轉換，不是刪列：訂單紀錄（含已付款過的）要保留供對帳與稽核，
+        // 「我的訂單」列表再把 CANCELLED 篩掉即可（見 BookingDaoImpl）。
+        if (!"CANCELLED".equals(b.getStatus())) {
+            b.setStatus("CANCELLED");
+            bookings.save(b);
+        }
     }
 }

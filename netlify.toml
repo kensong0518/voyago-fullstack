@@ -20,6 +20,11 @@
   # Google 登入：設定後顯示官方 Google 按鈕，任何 Google 帳號都可登入。
   # 此 Client ID 的「已授權 JavaScript 來源」需包含本站網址（Google Cloud Console 設定）。
   VITE_GOOGLE_CLIENT_ID = "484615494439-1gb54mkts6l96t5o8pafsjccnmugk3hr.apps.googleusercontent.com"
+  # 即時客服聊天（WebSocket）：Netlify 的 redirect 代理不保證支援跨網域的
+  # WebSocket upgrade，所以 WS 連線預設走 VITE_WS_BASE 直連後端（跳過上面的
+  # /api 代理），而不是走 /ws-chat 相對路徑。等後端換成 Render 真實網址後設定。
+  # 範例：VITE_WS_BASE = "wss://你的-render-app.onrender.com"
+  # VITE_WS_BASE = ""
 
 # /api/* → 後端，前端維持同源呼叫免處理 CORS
 # 把 BACKEND_ORIGIN 環境變數設好後，Netlify 會自動展開

@@ -188,6 +188,36 @@ export const api = {
     );
   },
 
+  // 收藏：優先打後端持久化，離線 / demo 時退回 localStorage（跟 favorites store 共用同一套 key）
+  getFavorites() {
+    return withFallback(
+      async () => (await client.get("/favorites")).data,
+      () => scopedGet("voyago_favorites", []).map((routeId) => ({ routeId }))
+    );
+  },
+
+  addFavorite(routeId) {
+    return withFallback(
+      async () => (await client.post(`/favorites/${routeId}`)).data,
+      () => {
+        const ids = scopedGet("voyago_favorites", []);
+        if (!ids.includes(routeId)) ids.push(routeId);
+        scopedSet("voyago_favorites", ids);
+        return { routeId };
+      }
+    );
+  },
+
+  removeFavorite(routeId) {
+    return withFallback(
+      async () => (await client.delete(`/favorites/${routeId}`)).data,
+      () => {
+        scopedSet("voyago_favorites", scopedGet("voyago_favorites", []).filter((id) => id !== routeId));
+        return { ok: true };
+      }
+    );
+  },
+
   // 客服
   getChat() {
     return withFallback(
@@ -282,9 +312,43 @@ export const api = {
           throw new Error("此 Email 已被註冊");
         const u = { id: Date.now(), name: payload.name, email: payload.email,
                     phone: payload.phone || null, password: payload.password,
-                    role: payload.role || "MEMBER", provider: "LOCAL", avatarUrl: null };
+                    role: payload.role || "MEMBER", provider: "LOCAL", avatarUrl: null,
+                    createdAt: new Date().toISOString() };
         users.push(u); LS.set("voyago_mock_users", users);
         return publicUser(u);
+      }
+    );
+  },
+
+  // 後台儀表板統計（STAFF 用）。demo 模式沒有真的跨帳號資料庫，
+  // 改成掃這個瀏覽器裡所有帳號的 mock 訂單資料做彙總，至少能呈現真實的統計邏輯。
+  getAdminStats() {
+    return withFallbackAny(
+      async () => (await client.get("/admin/stats")).data,
+      () => {
+        const allBookings = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith("voyago_mock_bookings")) {
+            allBookings.push(...LS.get(key, []));
+          }
+        }
+        const byStatus = (s) => allBookings.filter((b) => b.status === s).length;
+        const revenue = allBookings.filter((b) => b.status === "CONFIRMED").reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+        const now = new Date();
+        const newThisMonth = LS.get("voyago_mock_users", []).filter((u) => {
+          if (!u.createdAt) return false;
+          const d = new Date(u.createdAt);
+          return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+        }).length;
+        return {
+          totalMembers: mockUsers().length,
+          newMembersThisMonth: newThisMonth,
+          pendingBookings: byStatus("PENDING"),
+          confirmedBookings: byStatus("CONFIRMED"),
+          cancelledBookings: byStatus("CANCELLED"),
+          totalRevenue: revenue,
+        };
       }
     );
   },

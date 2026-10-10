@@ -64,7 +64,17 @@ async function book() {
 </script>
 
 <template>
-  <div v-if="loading" class="container-x py-24 text-center text-ink-400">載入中…</div>
+  <div v-if="loading" class="animate-pulse">
+    <div class="h-[42vh] min-h-[320px] w-full bg-ink-100" />
+    <div class="container-x mt-8 grid gap-8 lg:grid-cols-3">
+      <div class="space-y-3 lg:col-span-2">
+        <div class="h-4 w-1/3 rounded bg-ink-100" />
+        <div class="h-8 w-2/3 rounded bg-ink-100" />
+        <div class="h-24 w-full rounded bg-ink-100" />
+      </div>
+      <div class="h-56 rounded-2xl bg-ink-100" />
+    </div>
+  </div>
 
   <div v-else-if="notFound" class="container-x grid min-h-[50vh] place-items-center py-20 text-center">
     <div><p class="text-6xl">🧭</p><p class="mt-4 text-ink-500">找不到此行程。</p>

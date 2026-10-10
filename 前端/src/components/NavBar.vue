@@ -1,10 +1,11 @@
 <script setup>
-import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const open = ref(false);
 
 const links = [
@@ -18,6 +19,32 @@ function logout() {
   open.value = false;
   router.push("/");
 }
+
+// 導覽列目前所在頁面的滑動指示條：量測目前啟用連結的位置，讓指示條滑過去，
+// 比單純換色更看得出「這是同一條列，只是移到別的位置」。
+const navEl = ref(null);
+const linkEls = ref([]);
+const indicator = ref({ left: 0, width: 0, ready: false });
+
+function isActive(to) {
+  return to === "/" ? route.path === "/" : route.path.startsWith(to);
+}
+
+function updateIndicator() {
+  const activeIdx = links.findIndex((l) => isActive(l.to));
+  const el = linkEls.value[activeIdx];
+  if (!el || !navEl.value) { indicator.value = { ...indicator.value, ready: false }; return; }
+  const navBox = navEl.value.getBoundingClientRect();
+  const elBox = el.getBoundingClientRect();
+  indicator.value = { left: elBox.left - navBox.left, width: elBox.width, ready: true };
+}
+
+watch(() => route.path, () => nextTick(updateIndicator));
+onMounted(() => {
+  nextTick(updateIndicator);
+  window.addEventListener("resize", updateIndicator);
+});
+onUnmounted(() => window.removeEventListener("resize", updateIndicator));
 </script>
 
 <template>
@@ -28,10 +55,13 @@ function logout() {
         <span>歐洲自助遊</span>
       </RouterLink>
 
-      <div class="hidden items-center gap-1 md:flex">
-        <RouterLink v-for="l in links" :key="l.to" :to="l.to"
-          class="rounded-full px-4 py-2 text-sm font-medium text-ink-600 transition hover:text-ink-900"
-          active-class="bg-brand-50 !text-brand-700" exact-active-class="bg-brand-50 !text-brand-700">
+      <div ref="navEl" class="relative hidden items-center gap-1 md:flex">
+        <span v-if="indicator.ready" aria-hidden="true"
+          class="absolute inset-y-1 rounded-full bg-brand-50 transition-all duration-300 ease-out"
+          :style="{ left: indicator.left + 'px', width: indicator.width + 'px' }" />
+        <RouterLink v-for="(l, i) in links" :key="l.to" :to="l.to" :ref="(el) => (linkEls[i] = el?.$el ?? el)"
+          class="relative rounded-full px-4 py-2 text-sm font-medium text-ink-600 transition hover:text-ink-900"
+          active-class="!text-brand-700" exact-active-class="!text-brand-700">
           {{ l.label }}
         </RouterLink>
       </div>

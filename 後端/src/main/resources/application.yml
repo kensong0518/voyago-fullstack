@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/voyago?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Taipei&useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USER:root}
-    password: ${DB_PASSWORD:123456}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -18,15 +18,36 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
     open-in-view: false
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+        transport:
+          protocol: smtp
 
 app:
   jwt:
-    secret: ${JWT_SECRET:voyago-super-secret-key-change-me-in-production-please-32bytes}
+    secret: ${JWT_SECRET}
     expiration-ms: 604800000
   cors:
     allowed-origins: ${FRONTEND_ORIGIN:http://localhost:5173}
   google:
-    client-id: ${GOOGLE_CLIENT_ID:484615494439-1gb54mkts6l96t5o8pafsjccnmugk3hr.apps.googleusercontent.com}
+    client-id: ${GOOGLE_CLIENT_ID:}
+  security:
+    # 只有來自這些 IP 的請求，才會信任它附上的 X-Forwarded-For（例如雲端平台的負載平衡器）。
+    # 留空＝完全不信任 X-Forwarded-For，一律用實際連線位址，避免被偽造 header 繞過限流。
+    trusted-proxies: ${TRUSTED_PROXIES:}
+  mail:
+    # 訂單確認信寄件人；MAIL_HOST 沒設定時整個寄信流程會安全跳過，不影響付款主流程。
+    from: ${MAIL_FROM:noreply@voyago.example.com}
 
 # 只暴露 health 與 info，不洩漏 env / heapdump / 其他敏感端點
 management:

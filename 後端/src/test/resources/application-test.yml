@@ -1,0 +1,30 @@
+# Controller 整合測試專用 profile：用 H2 記憶體資料庫（MySQL 相容模式），
+# 不需要真的連上 MySQL，CI / 本機都能直接跑 mvn test。
+spring:
+  datasource:
+    url: jdbc:h2:mem:voyago-test;MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  mail:
+    host: ""     # 測試環境不寄信，BookingEmailService 會安全跳過
+
+app:
+  jwt:
+    secret: test-only-secret-key-at-least-32-bytes-long-for-hs256
+    expiration-ms: 3600000
+  cors:
+    allowed-origins: http://localhost:5173
+  google:
+    client-id: ""
+  security:
+    trusted-proxies: ""
+  mail:
+    from: test@voyago.example.com
