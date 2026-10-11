@@ -5,7 +5,7 @@ import api from "../api/api";
 import { useAuthStore } from "../stores/auth";
 import { useFavoritesStore } from "../stores/favorites";
 import RouteCard from "../components/RouteCard.vue";
-import { parseItinerary, COST_INCLUDED, COST_EXCLUDED, TRAVEL_NOTES, pickReviews, avatarColor, buildGallery, relatedRoutes } from "../data/content";
+import { parseItinerary, COST_INCLUDED, COST_EXCLUDED, TRAVEL_NOTES, pickReviews, avatarColor, buildGallery } from "../data/content";
 
 const route = useRoute();
 const router = useRouter();
@@ -14,6 +14,8 @@ const fav = useFavoritesStore();
 
 const data = ref(null);
 const allRoutes = ref([]);
+const similar = ref([]);
+const similarLoading = ref(true);
 const loading = ref(true);
 const notFound = ref(false);
 const activeImg = ref("");
@@ -29,13 +31,12 @@ const itinerary = computed(() => data.value ? parseItinerary(data.value.descript
 const tags = computed(() => (data.value?.tags || "").split(",").map((t) => t.trim()).filter(Boolean));
 const gallery = computed(() => data.value ? buildGallery(data.value, allRoutes.value) : []);
 const reviews = computed(() => data.value ? pickReviews(data.value.id) : []);
-const related = computed(() => data.value ? relatedRoutes(data.value, allRoutes.value) : []);
 const costIncluded = COST_INCLUDED, costExcluded = COST_EXCLUDED, notes = TRAVEL_NOTES;
 
 const twd = (n) => new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD", maximumFractionDigits: 0 }).format(n);
 
 async function loadAll() {
-  loading.value = true; notFound.value = false;
+  loading.value = true; notFound.value = false; similarLoading.value = true;
   try {
     const [d, list] = await Promise.all([api.getRoute(route.params.slug), api.getRoutes({})]);
     if (unmounted) return;                              // 元件已銷毀則放棄寫入
@@ -44,6 +45,14 @@ async function loadAll() {
     if (!unmounted) notFound.value = true;
   } finally {
     if (!unmounted) loading.value = false;
+  }
+  if (!data.value || unmounted) return;
+  // 相似行程推薦：獨立於主要內容載入，不阻塞頁面；後端用標籤重疊＋同國家計分
+  try {
+    const list = await api.getSimilarRoutes(data.value.slug, 3);
+    if (!unmounted) similar.value = list;
+  } finally {
+    if (!unmounted) similarLoading.value = false;
   }
 }
 onMounted(loadAll);
@@ -221,11 +230,17 @@ async function book() {
       </div>
     </div>
 
-    <!-- 相關行程 -->
-    <section class="container-x pb-16">
-      <h2 class="text-xl font-bold">你可能也喜歡</h2>
-      <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <RouteCard v-for="r in related" :key="r.slug" :route="r" />
+    <!-- 相似行程推薦（後端算分：標籤重疊 + 同國家，不是隨機湊的） -->
+    <section v-if="similarLoading || similar.length" class="container-x pb-16">
+      <div class="flex items-baseline gap-3">
+        <h2 class="text-xl font-bold">你可能也喜歡</h2>
+        <span class="text-xs text-ink-400">依標籤相似度與地區自動推薦</span>
+      </div>
+      <div v-if="similarLoading" class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-for="i in 3" :key="i" class="h-64 animate-pulse rounded-2xl bg-ink-100" />
+      </div>
+      <div v-else class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <RouteCard v-for="r in similar" :key="r.slug" :route="r" />
       </div>
     </section>
   </template>

@@ -41,4 +41,10 @@ public class RouteController {
     public RouteDto detail(@PathVariable String slug) {
         return routes.getBySlug(slug);
     }
+
+    /** 相似行程推薦（依標籤重疊＋同國家計分，預設回傳 3 筆）。 */
+    @GetMapping("/{slug}/similar")
+    public List<RouteDto> similar(@PathVariable String slug, @RequestParam(defaultValue = "3") int limit) {
+        return routes.getSimilar(slug, limit);
+    }
 }

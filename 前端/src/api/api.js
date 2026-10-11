@@ -101,6 +101,31 @@ export const api = {
     );
   },
 
+  // 相似行程推薦：標籤重疊數（權重 2）＋同國家（權重 1），demo 模式在前端算同一套邏輯
+  getSimilarRoutes(slug, limit = 3) {
+    return withFallbackAny(
+      async () => (await client.get(`/routes/${slug}/similar`, { params: { limit } })).data,
+      () => {
+        const base = MOCK_ROUTES.find((x) => x.slug === slug);
+        if (!base) return [];
+        const splitTags = (s) => new Set(String(s || "").split(",").map((t) => t.trim()).filter(Boolean));
+        const baseTags = splitTags(base.tags);
+        return MOCK_ROUTES
+          .filter((r) => r.slug !== slug)
+          .map((r) => {
+            const tags = splitTags(r.tags);
+            let score = [...tags].filter((t) => baseTags.has(t)).length * 2;
+            if (r.country && base.country && r.country.toLowerCase() === base.country.toLowerCase()) score += 1;
+            return { r, score };
+          })
+          .filter((x) => x.score > 0)
+          .sort((a, b) => b.score - a.score || b.r.rating - a.r.rating)
+          .slice(0, limit)
+          .map((x) => x.r);
+      }
+    );
+  },
+
   // 驗證
   login(email, password) {
     return withFallback(

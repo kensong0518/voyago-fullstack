@@ -31,6 +31,14 @@ class RouteServiceTest {
         return r;
     }
 
+    private Route route(String slug, String country, String tags, double rating) {
+        Route r = route(slug, 10000);
+        r.setCountry(country);
+        r.setTags(tags);
+        r.setRating(rating);
+        return r;
+    }
+
     @Test
     void getBySlug_returnsDto_whenFound() {
         when(routeDao.findBySlug("paris")).thenReturn(Optional.of(route("paris", 50000)));
@@ -63,5 +71,29 @@ class RouteServiceTest {
         assertEquals(13, page.totalElements());
         assertEquals(3, page.totalPages());   // ceil(13 / 6) = 3
         assertEquals(0, page.page());
+    }
+
+    @Test
+    void getSimilar_ranksByTagOverlapThenCountryThenRating() {
+        Route base = route("paris", "France", "city,romance,food", 4.5);
+        Route sameTagsAndCountry = route("lyon", "France", "city,food", 4.0);      // 2 個標籤重疊 + 同國
+        Route oneTagOnly = route("tokyo", "Japan", "city", 4.9);                   // 1 個標籤重疊
+        Route noOverlap = route("oslo", "Norway", "nature,hiking", 5.0);           // 無重疊，應被排除
+
+        when(routeDao.findBySlug("paris")).thenReturn(Optional.of(base));
+        when(routeDao.search("", "", null))
+                .thenReturn(List.of(base, sameTagsAndCountry, oneTagOnly, noOverlap));
+
+        List<RouteDto> result = service.getSimilar("paris", 3);
+
+        assertEquals(2, result.size());               // noOverlap 分數為 0 被篩掉，自己也被排除
+        assertEquals("lyon", result.get(0).slug());    // 標籤重疊 2 個 + 同國，分數最高
+        assertEquals("tokyo", result.get(1).slug());
+    }
+
+    @Test
+    void getSimilar_throws404_whenBaseMissing() {
+        when(routeDao.findBySlug("x")).thenReturn(Optional.empty());
+        assertThrows(ResponseStatusException.class, () -> service.getSimilar("x", 3));
     }
 }

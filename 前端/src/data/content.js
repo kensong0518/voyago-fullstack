@@ -67,11 +67,5 @@ export function buildGallery(route, allRoutes) {
   return [route.imageUrl, ...others].slice(0, 5);
 }
 
-// 相關行程：同國家優先，其次評價高
-export function relatedRoutes(route, allRoutes, n = 3) {
-  const sameCountry = allRoutes.filter((r) => r.id !== route.id && r.country === route.country);
-  const rest = allRoutes
-    .filter((r) => r.id !== route.id && r.country !== route.country)
-    .sort((a, b) => b.rating - a.rating);
-  return [...sameCountry, ...rest].slice(0, n);
-}
+// 相關行程推薦改由後端 /api/routes/{slug}/similar 計分（標籤重疊 + 同國家），
+// 見 api.js 的 getSimilarRoutes；demo 模式走同一套邏輯的前端版本。
