@@ -12,7 +12,7 @@ const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const configured = clientId && !clientId.startsWith("YOUR_");
 
 function goNext() {
-  router.push(route.query.next || "/dashboard");
+  router.push(route.query.next || auth.homePath);
 }
 
 async function handleCredential(response) {

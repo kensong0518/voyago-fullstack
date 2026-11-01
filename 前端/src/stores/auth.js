@@ -10,6 +10,8 @@ export const useAuthStore = defineStore("auth", {
   getters: {
     isLoggedIn: (s) => !!s.user,
     isStaff: (s) => s.user?.role === "STAFF",
+    // 登入後的預設落點：管理員進後台，其他人進會員中心（前台）
+    homePath: (s) => (s.user?.role === "STAFF" ? "/admin" : "/dashboard"),
   },
   actions: {
     setSession(token, user) {

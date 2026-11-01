@@ -4,16 +4,21 @@ import { MOCK_ROUTES, MOCK_USERS } from "../data/mockData";
 
 // 部署示範模式：設 VITE_DEMO_ONLY=true 時，前端完全用內建資料，不打後端
 const DEMO_ONLY = import.meta.env.VITE_DEMO_ONLY === "true";
+// 後端出錯時是否偷偷改用內建資料：本機開發沒開後端時方便，但正式串接後端的站台必須關掉
+// （VITE_MOCK_FALLBACK=false），否則後端一慢就會變成假登入、假訂單，看起來像有串接其實沒有。
+const MOCK_FALLBACK = DEMO_ONLY || import.meta.env.VITE_MOCK_FALLBACK !== "false";
 
 // ---------- 後端在線時走這裡；連不到時 fallback ----------
 async function withFallbackAny(real, mock) {
   if (DEMO_ONLY) return mock();
+  if (!MOCK_FALLBACK) return real();
   try { return await real(); }
   catch (e) { if (e.status && e.status >= 400 && e.status < 500 && e.status !== 404) throw e; return mock(); }
 }
 
 async function withFallback(real, mock) {
   if (DEMO_ONLY) return mock();
+  if (!MOCK_FALLBACK) return real();
   try {
     return await real();
   } catch (e) {
@@ -409,6 +414,28 @@ export const api = {
   },
 
   clearMockSession() { localStorage.removeItem("voyago_mock_current"); },
+
+  // ========== 後台資料管理（STAFF 用）：只打真實後端，示範模式沒有可寫入的資料庫 ==========
+  adminCreateRoute(payload) {
+    return adminOnly(async () => (await client.post("/admin/routes", payload)).data);
+  },
+  adminUpdateRoute(id, payload) {
+    return adminOnly(async () => (await client.put(`/admin/routes/${id}`, payload)).data);
+  },
+  adminDeleteRoute(id) {
+    return adminOnly(async () => (await client.delete(`/admin/routes/${id}`)).data);
+  },
+  adminListBookings({ status = "", page = 0, size = 10 } = {}) {
+    return adminOnly(async () => (await client.get("/admin/bookings", { params: { status, page, size } })).data);
+  },
+  adminUpdateBookingStatus(id, status) {
+    return adminOnly(async () => (await client.put(`/admin/bookings/${id}/status`, { status })).data);
+  },
 };
+
+function adminOnly(real) {
+  if (DEMO_ONLY) return Promise.reject(new Error("示範模式沒有連接後端資料庫，無法管理資料"));
+  return real();
+}
 
 export default api;

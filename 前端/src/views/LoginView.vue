@@ -17,7 +17,7 @@ async function submit() {
   error.value = ""; loading.value = true;
   try {
     await auth.login(email.value, password.value);
-    router.push(route.query.next || "/dashboard");
+    router.push(route.query.next || auth.homePath);
   } catch (e) {
     error.value = e.message;
   } finally {
