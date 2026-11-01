@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -45,6 +46,17 @@ public class GlobalExceptionHandler {
         log.warn("Data integrity violation: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "這筆資料仍被其他紀錄參照，無法刪除或修改"));
+    }
+
+    /**
+     * @PreAuthorize 在方法層拒絕時拋出的例外會先抵達這裡，而不是 Spring Security 的
+     * ExceptionTranslationFilter；若讓下面的 Exception 處理器接住會變成 500。
+     * 已登入但權限不足 → 403。
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "權限不足"));
     }
 
     @ExceptionHandler(Exception.class)
