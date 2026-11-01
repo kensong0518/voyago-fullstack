@@ -37,14 +37,14 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend.Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/voyago?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Taipei&useSSL=false&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      # 前端是同源（透過 Nginx proxy）；同時保留 5173 以便 dev 連線
-      FRONTEND_ORIGIN: "http://localhost,http://localhost:5173"
+      # 前端由 nginx（:80）提供，後端本身也會提供同一份網頁（:8080）；另保留 5173 給 dev
+      FRONTEND_ORIGIN: "http://localhost,http://localhost:8080,http://localhost:5173"
       JWT_SECRET: ${JWT_SECRET:-compose-demo-secret-change-me-please-32bytes-long}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}

@@ -1,55 +1,14 @@
-# Netlify 設定：build 前端 + 反代 /api 到 Render 後端
+# 正式站已改成 Render 上的單一服務（同一個網址提供網頁與 API，見根目錄 Dockerfile）。
+# 這個 Netlify 站台只保留舊網址：所有路徑 301 永久轉址到正式站，已經分享出去的舊連結不會失效。
 #
-# 這份檔案是前端部署設定的唯一來源：
-#   - 連結 Git 部署時，Netlify 直接讀它
-#   - 手動上傳部署時，用 scripts/build_netlify_drop.py 依它建置，
-#     並把下面的 redirects / headers 轉成 dist/_redirects、dist/_headers
+# 部署方式：python3 scripts/build_netlify_drop.py → 把產出的 netlify-drop.zip 拖進 Netlify 的 Deploys 頁。
 
 [build]
-  base = "前端"
-  publish = "dist"
-  command = "npm ci && npm run build"
+  # 沒有建置步驟：只發布一個轉址說明頁（真正的轉址由下面的 redirects 處理）
+  publish = "netlify-redirect"
 
-[build.environment]
-  NODE_VERSION = "20"
-  # Vite 用相對路徑 /api 呼叫，由下面的 proxy 轉到後端
-  VITE_API_BASE = "/api"
-  # 純前端示範模式：完全不打後端，全部資料用內建 mock。已接上 Render + TiDB，關閉。
-  VITE_DEMO_ONLY = "false"
-  # 後端出錯或冷啟動較慢時，不准偷偷改用前端假資料（否則看起來有串接其實沒有）
-  VITE_MOCK_FALLBACK = "false"
-  # Google 登入：設定後顯示官方 Google 按鈕，任何 Google 帳號都可登入。
-  # 此 Client ID 的「已授權 JavaScript 來源」需包含本站網址（Google Cloud Console 設定）。
-  VITE_GOOGLE_CLIENT_ID = "484615494439-1gb54mkts6l96t5o8pafsjccnmugk3hr.apps.googleusercontent.com"
-  # 即時客服聊天（WebSocket）：Netlify 的 redirect 代理不保證支援跨網域的
-  # WebSocket upgrade，所以 WS 連線預設走 VITE_WS_BASE 直連後端（跳過上面的
-  # /api 代理），而不是走 /ws-chat 相對路徑。等後端換成 Render 真實網址後設定。
-  VITE_WS_BASE = "wss://voyago-backend-c8fd.onrender.com"
-
-# /api/* → 後端，前端維持同源呼叫免處理 CORS。
-# 網址直接寫死：Netlify 不會在 redirects 規則裡代換環境變數，而且後端網址本來就是公開的。
-[[redirects]]
-  from = "/api/*"
-  to = "https://voyago-backend-c8fd.onrender.com/api/:splat"
-  status = 200
-  force = true
-
-# SPA 路由：找不到的路徑回 index.html
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200
-
-# 安全 / 快取 headers
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/index.html"
-  [headers.values]
-    Cache-Control = "no-store, no-cache, must-revalidate"
-    X-Content-Type-Options = "nosniff"
-    X-Frame-Options = "SAMEORIGIN"
-    Referrer-Policy = "strict-origin-when-cross-origin"
+  to = "https://voyago-backend-c8fd.onrender.com/:splat"
+  status = 301
+  force = true

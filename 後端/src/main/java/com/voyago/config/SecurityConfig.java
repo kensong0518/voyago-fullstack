@@ -50,7 +50,12 @@ public class SecurityConfig {
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                .anyRequest().authenticated()
+                // 其餘 API 一律要登入；細部角色（STAFF）由 @PreAuthorize 把關
+                .requestMatchers("/api/**").authenticated()
+                // 前端網頁與靜態檔（同一個服務提供，見 SpaWebConfig）。頁面本身不含資料，
+                // 資料都要透過上面受保護的 /api 取得，所以 /admin 這類頁面公開也拿不到後台資料
+                .requestMatchers(HttpMethod.GET, "/**").permitAll()
+                .anyRequest().denyAll()
             )
             .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

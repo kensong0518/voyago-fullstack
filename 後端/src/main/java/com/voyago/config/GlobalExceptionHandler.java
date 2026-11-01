@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 
@@ -57,6 +58,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "權限不足"));
+    }
+
+    /**
+     * Spring 6.1 起，找不到的網址（打錯的路徑、不存在的檔案）會丟 NoResourceFoundException；
+     * 若讓下面的 Exception 處理器接住，任何打錯的網址都會變成 500「伺服器發生錯誤」。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "找不到這個網址"));
     }
 
     @ExceptionHandler(Exception.class)

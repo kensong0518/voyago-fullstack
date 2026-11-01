@@ -1,13 +1,19 @@
-# 只有後端映像用 repo 根目錄當 build context（backend.Dockerfile）。
-# 前端映像的 context 是 ./前端，用它自己的 前端/.dockerignore，不受這份影響。
+# 整站映像（根目錄 Dockerfile）用 repo 根目錄當 build context：需要 前端/ 與 後端/ 的原始碼，
+# 但不要把本機的套件、建置產物與無關檔案送進 build。
+# 前端單獨的 nginx 映像（docker-compose 的 frontend）context 是 ./前端，用它自己的 前端/.dockerignore。
 .git/
 .github/
 .claude/
-前端/
 資料庫/
+scripts/
+netlify-redirect/
+netlify-drop.zip
+前端/node_modules/
+前端/dist/
 後端/target/
 後端/.mvn/
 後端/mvnw*
 **/*.md
 .env
 .env.*
+!前端/.env.production
