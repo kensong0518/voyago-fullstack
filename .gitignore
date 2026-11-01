@@ -27,3 +27,6 @@
 
 # 教學資料（個人用，不公開）
 教學資料/
+
+# 手動上傳 Netlify 用的建置產物（scripts/build_netlify_drop.py）
+netlify-drop.zip
