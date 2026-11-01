@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -167,23 +168,38 @@ class AdminManageIntegrationTest {
            .andExpect(jsonPath("$.error").exists());
     }
 
+    /**
+     * 這個測試不包在測試交易裡（NOT_SUPPORTED）：要驗證的是「後台改完、前台下一個請求看到新資料」，
+     * 這要每個請求各自一個交易才成立——跟正式環境一樣。若整段包成一個交易，MyBatis 會重用同一個
+     * SqlSession，把第一次 GET 的查詢結果從它的 session 快取直接回放，測到的是測試環境的假象。
+     * 因為資料會真的 commit，結尾自己清掉。
+     */
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void staffUpdatesRoute_publicDetailShowsNewPrice() throws Exception {
         String staff = token("STAFF");
-        mvc.perform(get("/api/routes/" + seedRoute.getSlug()))
-           .andExpect(jsonPath("$.price").value(10000));   // 先進快取
+        try {
+            mvc.perform(get("/api/routes/" + seedRoute.getSlug()))
+               .andExpect(jsonPath("$.price").value(10000));   // 先進 Caffeine 快取
 
-        Map<String, Object> body = routeBody(seedRoute.getSlug(), "改名後");
-        body.put("price", 12345);
-        mvc.perform(put("/api/admin/routes/" + seedRoute.getId()).header("Authorization", staff)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(body)))
-           .andExpect(status().isOk())
-           .andExpect(jsonPath("$.price").value(12345));
+            Map<String, Object> body = routeBody(seedRoute.getSlug(), "改名後");
+            body.put("price", 12345);
+            mvc.perform(put("/api/admin/routes/" + seedRoute.getId()).header("Authorization", staff)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json.writeValueAsString(body)))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.price").value(12345));
 
-        mvc.perform(get("/api/routes/" + seedRoute.getSlug()))
-           .andExpect(jsonPath("$.price").value(12345))
-           .andExpect(jsonPath("$.name").value("改名後"));
+            mvc.perform(get("/api/routes/" + seedRoute.getSlug()))
+               .andExpect(jsonPath("$.price").value(12345))
+               .andExpect(jsonPath("$.name").value("改名後"));
+        } finally {
+            routes.deleteById(seedRoute.getId());
+            members.deleteById(seedMember.getId());
+            members.findAll().stream()
+                   .filter(m -> m.getEmail().startsWith("staff-"))
+                   .forEach(members::delete);
+        }
     }
 
     @Test
