@@ -10,6 +10,7 @@ const routes = [
   { path: "/dashboard", name: "dashboard", component: () => import("../views/DashboardView.vue"), meta: { auth: true } },
   { path: "/checkout/:id", name: "checkout", component: () => import("../views/CheckoutView.vue"), meta: { auth: true } },
   { path: "/chat", name: "chat", component: () => import("../views/ChatView.vue"), meta: { auth: true } },
+  { path: "/admin", name: "admin", component: () => import("../views/AdminView.vue"), meta: { auth: true, staff: true } },
   { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("../views/NotFoundView.vue") },
 ];
 
@@ -25,6 +26,10 @@ router.beforeEach(async (to) => {
   if (!auth.ready) await auth.fetchMe();
   if (to.meta.auth && !auth.isLoggedIn) {
     return { name: "login", query: { next: to.fullPath } };
+  }
+  // 後台只給管理員；真正的權限仍由後端 @PreAuthorize 把關，這裡只是不讓一般會員看到空殼畫面
+  if (to.meta.staff && !auth.isStaff) {
+    return { name: "dashboard" };
   }
 });
 

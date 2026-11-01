@@ -24,6 +24,7 @@ app:
     allowed-origins: http://localhost:5173
   google:
     client-id: ""
+  admin-emails: "boss@voyago.test"
   security:
     trusted-proxies: ""
   mail:

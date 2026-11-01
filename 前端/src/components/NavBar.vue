@@ -68,6 +68,7 @@ onUnmounted(() => window.removeEventListener("resize", updateIndicator));
 
       <div class="hidden items-center gap-2 md:flex">
         <template v-if="auth.isLoggedIn">
+          <RouterLink v-if="auth.isStaff" to="/admin" class="btn-ghost font-semibold text-brand-700">🛠 後台管理</RouterLink>
           <RouterLink to="/dashboard" class="btn-ghost">嗨，{{ auth.user.name }}</RouterLink>
           <button class="btn-outline" @click="logout">登出</button>
         </template>
@@ -92,6 +93,7 @@ onUnmounted(() => window.removeEventListener("resize", updateIndicator));
           class="rounded-lg px-3 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50">{{ l.label }}</RouterLink>
         <div class="my-2 h-px bg-ink-100" />
         <template v-if="auth.isLoggedIn">
+          <RouterLink v-if="auth.isStaff" to="/admin" @click="open = false" class="rounded-lg px-3 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-50">🛠 後台管理</RouterLink>
           <RouterLink to="/dashboard" @click="open = false" class="rounded-lg px-3 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50">會員中心</RouterLink>
           <button @click="logout" class="rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 hover:bg-ink-50">登出</button>
         </template>

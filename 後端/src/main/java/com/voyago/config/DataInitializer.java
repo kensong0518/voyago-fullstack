@@ -4,6 +4,7 @@ import com.voyago.entity.Member;
 import com.voyago.entity.Route;
 import com.voyago.repository.MemberRepository;
 import com.voyago.repository.RouteRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,11 +15,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class DataInitializer {
 
     @Bean
-    CommandLineRunner seed(RouteRepository routes, MemberRepository members, PasswordEncoder encoder) {
+    CommandLineRunner seed(RouteRepository routes, MemberRepository members, PasswordEncoder encoder,
+                           @Value("${app.seed-demo-staff:true}") boolean seedDemoStaff) {
         return args -> {
             if (members.count() == 0) {
                 members.save(member("王小明", "demo@voyago.com", encoder.encode("password123"), "MEMBER"));
-                members.save(member("客服 Amy", "staff@voyago.com", encoder.encode("staff1234"), "STAFF"));
+                // 示範客服帳號的密碼寫在 README 裡，公開站台若種入等於誰都能進後台；
+                // 正式部署設 SEED_DEMO_STAFF=false，後台改由 ADMIN_EMAILS 的 Google 帳號登入。
+                if (seedDemoStaff) {
+                    members.save(member("客服 Amy", "staff@voyago.com", encoder.encode("staff1234"), "STAFF"));
+                }
             }
             if (routes.count() > 0) return;
 

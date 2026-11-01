@@ -4,7 +4,8 @@ import axios from "axios";
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || "/api",
   headers: { "Content-Type": "application/json" },
-  timeout: 10000,
+  // 免費雲端主機閒置後會休眠，第一個請求要等它喚醒（約 30–60 秒），逾時要給足
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 60000,
 });
 
 // 請求攔截器：自動帶上 JWT
