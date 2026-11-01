@@ -41,6 +41,10 @@ app:
     allowed-origins: ${FRONTEND_ORIGIN:http://localhost:5173}
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
+  # 後台管理員：逗號分隔的 Email，用 Google 登入時自動成為 STAFF
+  admin-emails: ${ADMIN_EMAILS:}
+  # 是否種入密碼公開的示範客服帳號 staff@voyago.com（本機示範用；公開站台請設 false）
+  seed-demo-staff: ${SEED_DEMO_STAFF:true}
   security:
     # 只有來自這些 IP 的請求，才會信任它附上的 X-Forwarded-For（例如雲端平台的負載平衡器）。
     # 留空＝完全不信任 X-Forwarded-For，一律用實際連線位址，避免被偽造 header 繞過限流。

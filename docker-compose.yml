@@ -46,6 +46,8 @@ services:
       FRONTEND_ORIGIN: "http://localhost,http://localhost:5173"
       JWT_SECRET: ${JWT_SECRET:-compose-demo-secret-change-me-please-32bytes-long}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      SEED_DEMO_STAFF: ${SEED_DEMO_STAFF:-true}
     ports:
       - "8080:8080"
     depends_on:
