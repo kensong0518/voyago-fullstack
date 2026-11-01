@@ -13,8 +13,9 @@ services:
   - type: web
     name: voyago-backend
     runtime: docker
-    dockerfilePath: ./後端/Dockerfile
-    dockerContext: ./後端
+    # Render 不接受非 ASCII 路徑，Dockerfile 放在根目錄（見 backend.Dockerfile 開頭說明）
+    dockerfilePath: ./backend.Dockerfile
+    dockerContext: .
     plan: free
     region: singapore         # 台灣使用者最近的免費機房
     healthCheckPath: /actuator/health

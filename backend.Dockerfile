@@ -1,4 +1,8 @@
 # syntax=docker/dockerfile:1.7
+#
+# 後端映像。放在 repo 根目錄、用 ASCII 檔名，build context 是 repo 根目錄：
+# Render 的 Blueprint 不接受非 ASCII 路徑（./後端/Dockerfile 會被判定無效），
+# 所以 render.yaml 與 docker-compose.yml 都指向這一份，維持單一來源。
 
 # ============ build stage ============
 # 把 pom.xml 先 COPY，讓 Maven 依賴成獨立層；
@@ -6,11 +10,11 @@
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
-COPY pom.xml ./
+COPY 後端/pom.xml ./
 # 先把 deps 拉進 local repo（src 不變時這層會被 cache 命中）
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q -ntp dependency:go-offline
 
-COPY src ./src
+COPY 後端/src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q -ntp clean package -DskipTests \
     && cp target/voyago-backend.jar /app/app.jar
 

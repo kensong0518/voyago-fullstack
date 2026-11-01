@@ -36,7 +36,8 @@ services:
 
   backend:
     build:
-      context: ./後端
+      context: .
+      dockerfile: backend.Dockerfile
     restart: unless-stopped
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/voyago?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Taipei&useSSL=false&allowPublicKeyRetrieval=true"
