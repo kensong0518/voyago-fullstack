@@ -26,7 +26,12 @@ class SpaHostingIntegrationTest {
 
     @Test
     void root_servesIndexHtml() throws Exception {
+        // Spring Boot 的首頁對應會把 / 轉送（forward）到 index.html；MockMvc 不執行 forward，
+        // 所以分兩步驗證：/ 轉送到 index.html，而 index.html 確實是前端網頁
         mvc.perform(get("/"))
+           .andExpect(status().isOk())
+           .andExpect(forwardedUrl("index.html"));
+        mvc.perform(get("/index.html"))
            .andExpect(status().isOk())
            .andExpect(content().string(containsString("voyago-spa-test")));
     }
@@ -53,7 +58,9 @@ class SpaHostingIntegrationTest {
     @Test
     void missingFiles_are404_notIndexHtml() throws Exception {
         mvc.perform(get("/assets/does-not-exist.js")).andExpect(status().isNotFound());
-        mvc.perform(get("/logo-missing.png")).andExpect(status().isNotFound());
+        mvc.perform(get("/logo-missing.png"))
+           .andExpect(status().isNotFound())
+           .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
