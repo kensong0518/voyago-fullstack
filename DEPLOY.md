@@ -1,116 +1,94 @@
-# 雲端部署指南（全免費）
+# 雲端部署指南（全免費、免信用卡）
 
-把這個專案部署到網路上，**不需要信用卡、不需要付任何錢**。
+這份是線上站台實際使用、驗證過的部署流程。
 
-組合：
-
-| 元件 | 平台 | 免費 tier 限制 |
+| 元件 | 平台 | 免費方案的限制 |
 |---|---|---|
-| 前端 (Vue SPA) | Netlify | 100 GB 流量/月，中小型流量綽綽有餘 |
-| 後端 (Spring Boot) | Render | 閒置 15 分鐘會睡，下次請求約 30 秒冷啟動 |
-| MySQL | TiDB Cloud Serverless | 25 GB 儲存、5 GB RU/月，MySQL 相容 |
+| 前端（Vue SPA） | Netlify | 每月流量額度對作品集綽綽有餘 |
+| 後端（Spring Boot） | Render | 閒置 15 分鐘會休眠，下次請求約 30–60 秒喚醒 |
+| 資料庫 | TiDB Cloud Starter（MySQL 相容） | 每個組織最多 5 個免費實例；每月花費上限設 $0 就只用免費額度 |
+
+目前線上：
+
+- 前端：<https://gleeful-valkyrie-494d4e.netlify.app>
+- 後端：<https://voyago-backend-c8fd.onrender.com>（`/actuator/health` 應回 `{"status":"UP"}`）
 
 ---
 
-## 步驟 1：建立 TiDB Cloud（免費 MySQL）
+## 步驟 1：TiDB Cloud（資料庫）
 
-1. 到 https://tidbcloud.com → 用 Google 帳號登入（免信用卡）。
-2. 點 **Create Cluster** → 選 **Serverless** → Region 選 `Tokyo (Asia-Northeast)`（亞洲最近）。
-3. Cluster name 填 `voyago`，按 **Create**（約 30 秒）。
-4. 建好後點進 cluster → **Connect** → **General**：
-   - Endpoint Type 選 **Public**
-   - Branch 選 main
-   - Connect With 選 **General**
-   - 點 **Generate Password**（密碼會只顯示一次，**馬上複製存好**）
-5. 看 **Connection String** 區塊，記下：
-   - `Host`：`gateway01.xxx.prod.aws.tidbcloud.com`
-   - `Port`：通常是 `4000`
-   - `User`：類似 `xxxx.root`
-   - `Password`：剛剛複製的
-6. 進 cluster → **SQL Editor**（左邊選單）→ 把 `資料庫/01_schema.sql` 的內容貼進去，按 **Run**。再貼 `02_seed.sql` 跑一次。
+1. 到 <https://tidbcloud.com> 用 Google 或 GitHub 登入。
+2. **Create Resource** → 方案選 **Starter**（預設是付費的 Essential，要手動切換）→ Compatibility Mode 選 **MySQL Compatible**。
+3. Instance Name 填 `voyago`、Region 選 `Tokyo (ap-northeast-1)`、Monthly Spending Limit 維持 **$0**。右側摘要應顯示「$0.00 maximum/month、No credit card required」，按 **Create**。
+4. 狀態變成 **Active** 後，左側選 **SQL Editor**，把 `資料庫/01_schema.sql` 整份貼上，按 `Shift + Ctrl + Enter` 全部執行。應該建出 5 張表：`member`、`route`、`booking`、`favorite`、`message`。
+   - **不要**執行 `02_seed.sql`：裡面有密碼公開的客服帳號。行程與示範會員會由後端第一次啟動時自動寫入。
+5. 左側 **Settings → Networking**：Public Endpoint 為 Enabled，Authorized Networks 要允許所有 IP（`0.0.0.0 – 255.255.255.255`）。Render 免費方案沒有固定 IP；連線一律走 TLS 並且需要密碼。
+6. 回 Overview 按 **Connect**，記下 HOST、PORT、USERNAME（類似 `xxxx.root`），按 **Generate Password** 產生密碼（只顯示一次，下一步直接貼到 Render）。
 
----
+## 步驟 2：Render（後端）
 
-## 步驟 2：部署後端到 Render
-
-1. 到 https://dashboard.render.com/select-repo?type=blueprint
-2. 連結你的 GitHub 帳號（如果還沒連），選 repo **`voyago-fullstack`**。
-3. Render 會自動讀到 `render.yaml`，跳出 env var 表單。逐項填：
+1. 到 <https://dashboard.render.com/select-repo?type=blueprint>。
+   - 如果 Render 的 GitHub 授權沒有開到這個 repo，在下方 **Public Git Repository** 貼上 `https://github.com/kensong0518/voyago-fullstack` 即可（repo 是公開的）。差別只在推送程式碼後不會自動重新部署，要到服務頁按 **Manual Deploy → Deploy latest commit**。
+2. Render 會讀 `render.yaml`，建立 `voyago-backend`（Docker、Free、新加坡）。填入：
 
 | 變數 | 值 |
 |---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:mysql://你的HOST:4000/voyago?useSSL=true&requireSSL=true&serverTimezone=Asia/Taipei&useUnicode=true&characterEncoding=utf8` |
-| `SPRING_DATASOURCE_USERNAME` | TiDB 給你的 user（類似 `xxxx.root`） |
-| `SPRING_DATASOURCE_PASSWORD` | 步驟 1 存下來的密碼 |
-| `FRONTEND_ORIGIN` | `https://你的-netlify-app.netlify.app`（步驟 3 拿到） |
-| `JWT_SECRET` | （Render 自動產生，不用動） |
-| `GOOGLE_CLIENT_ID` | 留空（或填你的 Google OAuth Client ID） |
+| `SPRING_DATASOURCE_URL` | `jdbc:mysql://<HOST>:4000/voyago?sslMode=VERIFY_IDENTITY&serverTimezone=Asia/Taipei&useUnicode=true&characterEncoding=utf8` |
+| `SPRING_DATASOURCE_USERNAME` | TiDB 的 USERNAME |
+| `SPRING_DATASOURCE_PASSWORD` | TiDB 剛產生的密碼 |
+| `FRONTEND_ORIGIN` | `https://gleeful-valkyrie-494d4e.netlify.app`（給 CORS 與 WebSocket 用，不要結尾 `/`） |
+| `ADMIN_EMAILS` | 後台管理員的 Google 帳號，逗號分隔 |
+| `GOOGLE_CLIENT_ID` | 跟前端 `VITE_GOOGLE_CLIENT_ID` 相同 |
 
-> ⚠️ `FRONTEND_ORIGIN` 可以先填 `*` 或之後再回來改。
+   `JWT_SECRET` 由 Render 自動產生；`SEED_DEMO_STAFF=false`、JVM 參數、`SPRING_JPA_HIBERNATE_DDL_AUTO=none` 已寫在 `render.yaml`，不用手填。
 
-4. 按 **Apply** → Render 開始 build（第一次約 5–10 分鐘）。
-5. Build 完成後，畫面上方會顯示後端 URL，類似 `https://voyago-backend-xxxx.onrender.com`。
-6. 測試： `https://你的-render-url.onrender.com/api/routes` 應該回一串 JSON。
+3. 按 **Deploy Blueprint**。第一次建置約 5–8 分鐘，看到服務狀態 Live、`/actuator/health` 回 `UP` 就完成了。
 
----
+> ⚠️ 如果第一次 Blueprint 部署失敗，Render 會把上面手填的值清掉。到服務的 **Environment** 頁確認那 6 個變數都還在，缺的用 **Add variable → Import from .env** 補回去，再按 **Save, rebuild, and deploy**。
 
-## 步驟 3：設定 Netlify
+## 步驟 3：Netlify（前端）
 
-### 3-A. 連結 GitHub repo（如果還沒連）
+前端的所有部署設定都在 `netlify.toml`（建置環境變數、`/api` 反代到 Render、SPA fallback、安全標頭）。換了後端網址的話，改這份檔案的 `VITE_WS_BASE` 和 `/api/*` 那條 redirect。
 
-1. 到 https://app.netlify.com → 你現有的 site → **Site configuration** → **Build & deploy** → **Link repository**。
-2. 選 GitHub → repo `voyago-fullstack` → branch `main`。
-3. Netlify 會讀到 `netlify.toml`，自動帶入 build 設定。
+**A. 手動上傳（目前線上用的方式）**
 
-### 3-B. 設定 BACKEND_ORIGIN 環境變數
+```bash
+python3 scripts/build_netlify_drop.py
+```
 
-1. **Site configuration** → **Environment variables** → **Add a variable**。
-2. Key：`BACKEND_ORIGIN`、Value：步驟 2 拿到的 Render URL（不要結尾 `/`）。
-3. 按 **Save**。
+腳本會依 `netlify.toml` 建置，把 redirects / headers 轉成 `dist/_redirects`、`dist/_headers`，打包成根目錄的 `netlify-drop.zip`。到 Netlify 站台的 **Deploys** 頁，把這個 zip 拖進去就上線了。
 
-### 3-C. 觸發重新部署
+**B. 連結 Git 自動部署**
 
-1. **Deploys** → **Trigger deploy** → **Clear cache and deploy site**。
-2. 等 1–2 分鐘，build 成功就好了。
+Netlify 站台 → **Project configuration → Build & deploy → Link repository** → 選這個 repo 的 `main`。Netlify 會直接讀 `netlify.toml`，不需要再設任何環境變數。
 
----
+## 步驟 4：Google 登入
 
-## 步驟 4：把 Render 的 FRONTEND_ORIGIN 補正
+到 Google Cloud Console 的 OAuth 用戶端，確認「已授權的 JavaScript 來源」包含前端網址 `https://gleeful-valkyrie-494d4e.netlify.app`。前後端的 Client ID 必須是同一個。
 
-1. Netlify 上你的網域是 `https://xxxx.netlify.app`。
-2. 回 Render dashboard → 你的 service → **Environment** → 找 `FRONTEND_ORIGIN` → 改成 Netlify 網址（不要結尾 `/`）。
-3. 按 **Save Changes** → Render 會自動 redeploy（約 2 分鐘）。
+`ADMIN_EMAILS` 裡的帳號用 Google 登入會進後台 `/admin`；其他人登入是一般會員（前台）。名單內的 Email 不能用帳密註冊，避免被人搶註冒充管理員。
 
 ---
 
-## 步驟 5：測試
+## 驗證清單
 
-開 Netlify 網址 → 註冊一個新帳號：
-
-- 密碼要 **≥ 8 碼且含英文與數字**（前端會即時提示）
-- 註冊成功會跳到 `/dashboard`
-- 試試訂購一個行程 → 在 TiDB SQL Editor 跑 `SELECT * FROM booking;` 會看到剛剛的訂單
-
----
+1. `https://<後端>/actuator/health` → `{"status":"UP"}`（包含資料庫連線檢查）。
+2. `https://<前端>/api/routes` → 10 筆行程 JSON（證明 Netlify → Render → TiDB 整條通）。
+3. 前端頂部橫幅應該是「不要輸入真實的密碼、信用卡或個資」，而不是「所有資料僅暫存於你的瀏覽器」（後者代表還在示範模式）。
+4. 註冊一個會員、下一筆訂單，到 TiDB SQL Editor 執行 `SELECT * FROM voyago.booking;` 應該看得到。
+5. 用 `ADMIN_EMAILS` 裡的 Google 帳號登入 → 自動進 `/admin`；用一般帳號打 `/admin` 會被導回會員中心，直接呼叫 `/api/admin/*` 會被後端擋下。
 
 ## 常見問題
 
-| 問題 | 解法 |
+| 狀況 | 原因與處理 |
 |---|---|
-| Netlify build 失敗 | 看 deploy log；通常是 `BACKEND_ORIGIN` 沒設或拼錯 |
-| Render 一直 503 | 第一次冷啟動要 30 秒，刷新等等。連續 503 看 Logs，多半是 DB 連不上（檢查 URL/密碼/防火牆 IP allowlist） |
-| TiDB 拒絕連線 | TiDB Serverless 預設要 SSL，JDBC URL 一定要 `useSSL=true&requireSSL=true` |
-| 註冊出現「連線發生問題」 | F12 看 Network → Status code： 404 表 Netlify proxy 沒設好；500 表後端錯，看 Render Logs |
-| 行程列表是空的 | TiDB SQL Editor 跑一次 `02_seed.sql` |
+| Render 顯示 `Invalid Dockerfile path` | 路徑含中文。`render.yaml` 應指向根目錄的 `./backend.Dockerfile`、`dockerContext: .` |
+| 部署一直停在「Waiting for internal health check」 | 看 Logs：`AuthenticationFailedException`（mail）代表沒關掉 mail 健康檢查；完全沒輸出代表啟動太慢，確認 `JAVA_TOOL_OPTIONS` 用的是 `render.yaml` 裡的 SerialGC 設定 |
+| 頁面一直轉圈或第一次很慢 | 免費方案休眠中，等 30–60 秒喚醒 |
+| 前端 `/api/...` 回 404 | `_redirects` 沒進到上傳的 zip；用 `scripts/build_netlify_drop.py` 重建 |
+| TiDB 拒絕連線 | JDBC URL 要有 `sslMode=VERIFY_IDENTITY`；確認 Authorized Networks 允許外部 IP |
+| 行程列表是空的 | 後端第一次啟動時才會寫入行程；看 Render Logs 有沒有資料庫連線錯誤 |
 
----
+## 只要純前端展示？
 
-## 不想搞這麼麻煩？純前端 Demo 模式
-
-如果只要 UI 展示、不需要真資料庫：在 Netlify 環境變數加 `VITE_DEMO_ONLY=true`，全部走前端內建示範資料，後端不用部署。
-
-```
-VITE_DEMO_ONLY=true
-```
-
-設好後 Clear cache and deploy site，就完成了。
+把 `netlify.toml` 的 `VITE_DEMO_ONLY` 改成 `"true"` 重新部署，前端完全用內建示範資料，不需要後端與資料庫。

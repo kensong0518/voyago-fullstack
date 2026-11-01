@@ -10,7 +10,15 @@ Voyago 是一個前後端分離的旅遊行程預訂平台：Vue 3 單頁前端�
 
 線上示範：<https://gleeful-valkyrie-494d4e.netlify.app>
 
-> 線上站台目前執行在「前端示範模式」。由於免費層後端常因閒置而休眠，為避免連結失效，前端在偵測不到後端時會改用內建假資料（存於 localStorage），註冊、登入、搜尋、下訂、客服對話等流程仍可完整操作。要體驗完整三層架構，請依下方[快速開始](#快速開始)在本機啟動。
+> 線上站台是**完整三層架構**：前端在 Netlify、後端 Spring Boot 在 Render、資料存在 TiDB Cloud（MySQL 相容）。註冊、下訂、收藏都會真的寫進資料庫，換裝置登入資料還在。
+>
+> 後端用的是免費方案，閒置 15 分鐘會休眠，**第一次打開可能要等 30–60 秒**喚醒，之後就正常速度。
+>
+> | 層 | 線上位址 |
+> | --- | --- |
+> | 前端 | <https://gleeful-valkyrie-494d4e.netlify.app> |
+> | 後端 API | <https://voyago-backend-c8fd.onrender.com/api/routes>（健康檢查：`/actuator/health`） |
+> | 資料庫 | TiDB Cloud Starter（東京），只接受 TLS 連線 |
 
 ```
 瀏覽器 (Vue 3 SPA)  ──axios / JWT──▶  Spring Boot REST API  ──JPA / MyBatis-Plus──▶  MySQL 8
@@ -60,7 +68,13 @@ flowchart LR
 
 一般會員能做的事：註冊登入（帳密或 Google）、搜尋與篩選行程（關鍵字、標籤、多種排序、分頁）、看行程詳情（圖庫、每日安排、依標籤重疊與同國家計分的「相似行程推薦」）、收藏行程（後端持久化，換裝置也看得到，連不上後端時退回本機暫存）、下訂單（選日期人數、自動算總價、過去的日期會被擋）、模擬結帳（轉已付款並背景寄送確認信）、在會員中心管訂單和個資、刪帳號要雙重確認，還有即時客服對話（WebSocket 推播，連不上會自動退回原本的 REST 輪詢）。
 
-客服／管理人員（STAFF）多了一塊會員管理面板：最上方是儀表板統計卡片（總會員數、本月新增、訂單狀態分布、總營收），下面是會員管理——可以用姓名 / Email / 電話搜尋會員、分頁瀏覽、新增會員（能指定角色、有密碼強度規則）、刪除會員。刪除會員時後端會擋住「刪掉自己」，避免把管理員全鎖死。
+管理員（STAFF）登入後直接進**後台 `/admin`**，一般會員則進前台的會員中心。後台最上方是儀表板統計卡片（總會員數、本月新增、訂單狀態分布、總營收），下面分三個分頁：
+
+- **行程管理**：新增 / 編輯 / 刪除行程（含欄位驗證、封面圖預覽）。改完會清掉前台的 Caffeine 快取，前台下一次請求就看到新內容；已經有訂單的行程不能刪，避免交易紀錄被連帶消失。
+- **訂單管理**：看所有會員的訂單（含下訂人），依狀態篩選、直接改付款狀態，儀表板數字跟著更新。
+- **會員管理**：用姓名 / Email / 電話搜尋會員、分頁瀏覽、新增會員（能指定角色、有密碼強度規則）、刪除會員。後端會擋住「刪掉自己」，避免把管理員全鎖死。
+
+**誰是管理員**由部署環境變數 `ADMIN_EMAILS` 決定：名單內的帳號用 **Google 登入**時自動成為 STAFF。只認 Google 登入是刻意的——帳密註冊不驗證 Email 所有權，如果也認帳密，任何人搶先用管理員的 Email 註冊就能拿到後台；所以名單內的 Email 也禁止走帳密註冊。正式站台不會建立密碼寫在本文件裡的示範客服帳號（`SEED_DEMO_STAFF=false`）。
 
 工程上幾個細節：前端的示範模式（`VITE_DEMO_ONLY`）會在頁面上下顯示聲明橫幅、axios 攔截器統一處理 401（清掉 token 導回登入）、後端開 `/actuator/health` 給 Docker 和雲端平台探活。
 
@@ -86,14 +100,16 @@ voyago-fullstack/
 │   │   ├── security/    JwtAuthFilter、AuthRateLimitFilter（Bucket4j）
 │   │   ├── config/      SecurityConfig、CacheConfig、全域例外處理
 │   │   └── dto/         請求 / 回應物件（Bean Validation）
-│   ├── src/test/java/   JUnit 5 + Mockito 單元測試
-│   └── Dockerfile       Maven 依賴層快取、JRE Alpine、non-root
+│   └── src/test/java/   JUnit 5 + Mockito 單元測試、MockMvc 整合測試
 ├── 資料庫/
 │   ├── 01_schema.sql    建庫建表（外鍵、複合索引、utf8mb4）
 │   └── 02_seed.sql      10 條歐洲行程 + 體驗帳號 + 示範訂單
+├── backend.Dockerfile   後端映像（Maven 依賴層快取、JRE Alpine、non-root）；放根目錄是因為 Render 不接受中文路徑
 ├── docker-compose.yml   一鍵起三層（volume、初始化 SQL、健康檢查鏈）
-├── render.yaml          Render Blueprint：後端一鍵部署
-├── netlify.toml         Netlify 設定：/api 反代、示範模式開關
+├── render.yaml          Render Blueprint：後端部署設定
+├── netlify.toml         Netlify 設定：/api 反代、前端建置環境變數（前端部署設定的唯一來源）
+├── scripts/
+│   └── build_netlify_drop.py  依 netlify.toml 建置前端並打包，給「手動上傳」部署用
 └── DEPLOY.md            雲端部署逐步指南（TiDB Cloud → Render → Netlify）
 ```
 
@@ -148,8 +164,8 @@ VITE_DEMO_ONLY=true npm run dev
 
 | 角色 | Email | 密碼 | 能做什麼 |
 | --- | --- | --- | --- |
-| 一般會員 | `demo@voyago.com` | `password123` | 預訂、訂單、客服、編輯資料 |
-| 客服人員 | `staff@voyago.com` | `staff1234` | 以上全部，再加會員管理面板 |
+| 一般會員 | `demo@voyago.com` | `password123` | 預訂、訂單、客服、編輯資料（本機與線上都有） |
+| 客服人員 | `staff@voyago.com` | `staff1234` | 以上全部，再加後台（**只在本機**；線上站台的後台改由 `ADMIN_EMAILS` 裡的 Google 帳號登入） |
 
 登入頁已經預填會員帳號，點一下就能進。
 
@@ -184,6 +200,10 @@ VITE_DEMO_ONLY=true npm run dev
 | POST | `/api/members` | 新增會員 | STAFF |
 | DELETE | `/api/members/{id}` | 刪除會員（不能刪自己） | STAFF |
 | GET | `/api/admin/stats` | 後台儀表板統計（會員數、訂單狀態分布、總營收） | STAFF |
+| POST | `/api/admin/routes` | 新增行程（網址代稱不可重複） | STAFF |
+| PUT / DELETE | `/api/admin/routes/{id}` | 編輯 / 刪除行程（有訂單的行程不能刪） | STAFF |
+| GET | `/api/admin/bookings?status=&page=&size=` | 所有會員的訂單（含下訂人），可依狀態篩選 | STAFF |
+| PUT | `/api/admin/bookings/{id}/status` | 調整訂單狀態 | STAFF |
 | GET | `/actuator/health` | 健康檢查（只開 health/info） | 公開 |
 
 ---
@@ -283,9 +303,12 @@ cd 後端 && mvn test    # JUnit 5 + Mockito
 | `BookingServiceTest` | 訂單金額計算、日期驗證（以固定 `Clock` 注入，不受執行當下日期影響）、權限檢查、付款成功會觸發一次（且僅一次）確認信 |
 | `FavoriteServiceTest` | 新增收藏、重複收藏的冪等處理、取消收藏 |
 | `AdminStatsServiceTest` | 後台統計彙總邏輯，含「本月新增會員」的時間邊界（固定 `Clock`） |
-| `ApiPermissionIntegrationTest` | Controller 層整合測試，用 MockMvc + H2（`test` profile）跑完整的 Spring Security filter chain，驗證權限矩陣：公開端點免登入、一般端點（訂單、收藏）需登入、後台端點（會員管理、統計）需 `STAFF` 角色 |
+| `ApiPermissionIntegrationTest` | Controller 層整合測試，用 MockMvc + H2（`test` profile）跑完整的 Spring Security filter chain，驗證權限矩陣：公開端點免登入、一般端點（訂單、收藏）需登入、後台端點（會員管理、統計）需 `STAFF` 角色；一般會員打後台端點要回 403（不是 500） |
+| `AdminManageIntegrationTest` | 後台行程 / 訂單管理：權限、代稱不可重複、有訂單的行程不能刪、輸入驗證，以及「後台改完、前台下一個請求就看到新資料」（驗證快取確實被清掉） |
+| `AuthServiceAdminTest` | 誰能進後台：名單內且經 Google 驗證 Email 的帳號才是 STAFF（大小寫不敏感），未驗證 Email 或名單外一律是一般會員，名單內的 Email 不能走帳密註冊 |
+| `HealthEndpointIntegrationTest` | 沒有郵件伺服器時 `/actuator/health` 仍是 UP——寄信是選用功能，不能讓雲端平台判定整個服務失敗 |
 
-CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify` 和前端 `npm ci && npm run build`，上傳測試報告和建置產物，同分支重複觸發會自動取消舊任務。
+CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify`、前端 `npm ci && npm run build`，再用跟 Render **完全相同的 Dockerfile 與 build context** 建一次後端映像，部署設定壞掉會在 CI 先被抓到。同分支重複觸發會自動取消舊任務。
 
 ---
 
@@ -295,11 +318,18 @@ CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify` 和前端 
 
 | 元件 | 平台 | 設定檔 |
 | --- | --- | --- |
-| 前端 | Netlify | `netlify.toml`（`/api` 反代、SPA fallback、快取 / 安全標頭） |
-| 後端 | Render（Blueprint 一鍵） | `render.yaml`（Docker、健康檢查、環境變數、新加坡節點） |
-| 資料庫 | TiDB Cloud Serverless（MySQL 相容） | 直接匯入 `資料庫/01_schema.sql` |
+| 前端 | Netlify | `netlify.toml`（建置環境變數、`/api` 反代、SPA fallback、快取 / 安全標頭） |
+| 後端 | Render（Blueprint） | `render.yaml` + `backend.Dockerfile`（健康檢查、環境變數、新加坡節點、免費方案的 JVM 調校） |
+| 資料庫 | TiDB Cloud Starter（MySQL 相容、TLS） | 在 SQL Editor 執行 `資料庫/01_schema.sql`；行程與示範會員由後端第一次啟動時自動寫入 |
 
-逐步指南見 [DEPLOY.md](DEPLOY.md)。示範模式開關在 `netlify.toml` 的 `VITE_DEMO_ONLY`：設 `true` 前端完全離線（線上 Demo 現在就是這樣），後端掛好後改 `false` 並設 `BACKEND_ORIGIN`，前端程式碼一行都不用動就切成真三層。
+逐步指南見 [DEPLOY.md](DEPLOY.md)。線上站台已經是真三層：`netlify.toml` 裡 `VITE_DEMO_ONLY=false`、`VITE_MOCK_FALLBACK=false`。後者很重要——後端慢或出錯時，前端**不准**偷偷改用內建假資料，否則看起來有串接其實沒有。要回到純前端展示，把 `VITE_DEMO_ONLY` 改回 `true` 重新部署即可，前端程式碼不用動。
+
+部署過程踩到、已經從根源修掉的幾個坑（都有對應的測試或 CI 檢查）：
+
+- **Render 不接受非 ASCII 路徑**：`./後端/Dockerfile` 被 Blueprint 判定無效 → Dockerfile 移到根目錄 `backend.Dockerfile`，docker-compose 也改用同一份，CI 用相同設定建映像。
+- **沒有郵件伺服器時健康檢查永遠 DOWN**：Spring 的 mail health indicator 讓 `/actuator/health` 回 503，Render 判定部署失敗 → 關掉 mail 的健康檢查（寄信是選用功能），資料庫檢查保留。
+- **免費方案啟動逾時**：G1 + 完整 JIT 的背景執行緒在極少的 CPU 上跟啟動搶資源 → 正式環境用 SerialGC + C1，並且不讓 Hibernate 每次啟動跨區掃描 schema（`ddl-auto=none`，結構由 SQL 檔管理）。
+- **Netlify 不會在 redirect 規則裡代換環境變數**：原本 `${BACKEND_ORIGIN}` 的反代寫法實際上不會生效 → 後端網址直接寫在 `netlify.toml`（本來就是公開網址）。
 
 ---
 
@@ -311,7 +341,7 @@ CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify` 和前端 
 
 **為什麼同時用兩套 ORM。** Booking / Message / Member 用 JPA + Criteria API（型別安全的動態查詢、fetch join）；Route 用 MyBatis-Plus（`LambdaQueryWrapper` + 分頁外掛）。JPA 的關聯映射省事但複雜查詢容易失控，MyBatis-Plus 對 SQL 掌控度高但關聯要自己接；兩者並存是刻意比較，正式產品會收斂成一套。
 
-**為什麼做示範模式。** 免費層後端常因閒置休眠，連結一點就逾時。與其這樣，不如讓前端在偵測不到後端時優雅降級到假資料，這也是「graceful degradation」的一個實例。
+**為什麼做示範模式，又為什麼線上把它關掉。** 示範模式讓前端不靠後端也能完整展示，適合只要看 UI 的場合。但正式串接後端的站台一定要關掉「出錯就改用假資料」：否則後端一慢，登入和下單就會悄悄變成存在瀏覽器裡的假資料，畫面看起來正常、資料卻沒進資料庫。所以這兩件事拆成兩個開關：`VITE_DEMO_ONLY`（整站離線展示）與 `VITE_MOCK_FALLBACK`（後端出錯時要不要降級）。
 
 **限流為什麼放 Filter 不放 Controller。** 在進 Spring MVC 之前就擋掉超量請求，省下反序列化和後面一整串業務處理的成本。
 
@@ -325,8 +355,9 @@ CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify` 和前端 
 - 沒有金流。訂單只到「建立 / 取消 / 標記付款」，真的接金流要再處理狀態機和對帳；付款成功後會非同步寄送確認信（`spring-boot-starter-mail`），沒設定 `MAIL_HOST` 時安全跳過，不影響付款流程。
 - Controller 層已補 `MockMvc` + H2 的權限矩陣整合測試，但還沒有前端 E2E。
 - 圖片走外部連結加 `onerror` 備援，正式上線應該換成自己的物件儲存 + CDN。
-- 示範模式的假資料存在 localStorage，換裝置或清快取就沒了，這是刻意的（Demo 用）。
-- 後台統計在示範模式下是掃這個瀏覽器裡所有帳號的 mock 訂單資料彙總（demo 沒有真的跨帳號資料庫），正式環境接後端後是真正的 SQL 彙總查詢。
+- 示範模式（`VITE_DEMO_ONLY=true`）的假資料存在 localStorage，換裝置或清快取就沒了，這是刻意的；後台的行程 / 訂單管理在示範模式下不能用，因為沒有可寫入的資料庫。
+- 免費方案的後端閒置會休眠，第一次請求要等喚醒。要隨時秒開就得升級付費方案。
+- Netlify 站台目前用「手動上傳」部署（`scripts/build_netlify_drop.py`），還沒接上 Git 自動部署；接上之後 `netlify.toml` 直接生效，不用改任何設定。
 
 ---
 
