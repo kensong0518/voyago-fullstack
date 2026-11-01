@@ -34,6 +34,9 @@ public class AdminManageServiceImpl implements AdminManageService {
     // ---------- 行程 ----------
     // 前台列表、單筆與相似推薦都掛了 Caffeine 快取；後台一改資料就整批清掉，
     // 否則前台最多會看到 5 分鐘前的舊內容。
+    //
+    // 寫入一律立刻 flush：前台讀行程走 MyBatis-Plus（直接 JDBC），寫入走 JPA，
+    // JPA 預設把 SQL 延到交易結束才送出，同一交易內 MyBatis 會讀到舊資料。
 
     @Override
     @Caching(evict = {
@@ -46,7 +49,7 @@ public class AdminManageServiceImpl implements AdminManageService {
         }
         Route r = new Route();
         apply(r, req);
-        return RouteDto.from(routes.save(r));
+        return RouteDto.from(routes.saveAndFlush(r));
     }
 
     @Override
@@ -63,7 +66,7 @@ public class AdminManageServiceImpl implements AdminManageService {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "網址代稱已被其他行程使用");
                 });
         apply(r, req);
-        return RouteDto.from(routes.save(r));
+        return RouteDto.from(routes.saveAndFlush(r));
     }
 
     @Override
@@ -80,6 +83,7 @@ public class AdminManageServiceImpl implements AdminManageService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "這個行程已有訂單，不能刪除");
         }
         routes.deleteById(id);
+        routes.flush();
     }
 
     private void apply(Route r, RouteUpsertRequest req) {
