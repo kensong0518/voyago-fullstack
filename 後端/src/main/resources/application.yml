@@ -64,3 +64,9 @@ management:
       probes:
         enabled: true
       show-details: never
+  health:
+    # 寄信是選用功能（沒設 MAIL_HOST 就跳過、寄失敗也不影響付款），不該決定服務死活。
+    # 否則沒有郵件伺服器時健康檢查一律 DOWN，雲端平台會判定部署失敗、永遠不上線。
+    # 資料庫的健康檢查保留：連不上 DB 才是真的不能服務。
+    mail:
+      enabled: false
