@@ -1,10 +1,21 @@
 # syntax=docker/dockerfile:1.7
 #
-# 後端映像。放在 repo 根目錄、用 ASCII 檔名，build context 是 repo 根目錄：
-# Render 的 Blueprint 不接受非 ASCII 路徑（./後端/Dockerfile 會被判定無效），
-# 所以 render.yaml 與 docker-compose.yml 都指向這一份，維持單一來源。
+# 整個網站的映像：一個 Spring Boot 服務同時提供前端網頁與 API（單一網址部署，見 SpaWebConfig）。
+# build context 是 repo 根目錄、檔案用 ASCII 名稱放在根目錄：Render 的 Blueprint 不接受非 ASCII 路徑
+# （./後端/Dockerfile 會被判定無效）。render.yaml、docker-compose.yml 與 CI 都用這一份。
 
-# ============ build stage ============
+# ============ 前端 build stage ============
+# 正式環境的前端設定在 前端/.env.production（全是公開值），vite build 會自動讀取
+FROM node:20-alpine AS web
+WORKDIR /web
+
+COPY 前端/package.json 前端/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+
+COPY 前端/ ./
+RUN npm run build
+
+# ============ 後端 build stage ============
 # 把 pom.xml 先 COPY，讓 Maven 依賴成獨立層；
 # 之後只改 src 不會重抓所有套件 → 鏡像 rebuild 從 ~2 min 縮到 ~20s
 FROM maven:3.9.9-eclipse-temurin-17 AS build
@@ -15,6 +26,8 @@ COPY 後端/pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q -ntp dependency:go-offline
 
 COPY 後端/src ./src
+# 前端產物放進 classpath:/static/，跟後端打包成同一個 jar
+COPY --from=web /web/dist ./src/main/resources/static
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q -ntp clean package -DskipTests \
     && cp target/voyago-backend.jar /app/app.jar
 

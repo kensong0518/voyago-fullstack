@@ -1,23 +1,23 @@
 # Voyago — 歐洲自助遊預訂平台
 
 [![CI](https://github.com/kensong0518/voyago-fullstack/actions/workflows/ci.yml/badge.svg)](https://github.com/kensong0518/voyago-fullstack/actions/workflows/ci.yml)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Netlify-00C7B7?logo=netlify&logoColor=white)](https://gleeful-valkyrie-494d4e.netlify.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7?logo=render&logoColor=white)](https://voyago-backend-c8fd.onrender.com)
 ![Vue 3](https://img.shields.io/badge/Vue-3.x-42b883?logo=vuedotjs&logoColor=white)
 ![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?logo=springboot&logoColor=white)
 ![MySQL 8](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
 
 Voyago 是一個前後端分離的旅遊行程預訂平台：Vue 3 單頁前端透過 axios 呼叫 Spring Boot REST API，資料存於 MySQL。除了基本 CRUD，系統也處理了幾個正式產品常見但容易被忽略的需求——帳密登入之外整合 Google 登入、密碼以 BCrypt 雜湊、登入端點做限流、熱門查詢加快取、並搭配單元測試與 CI。
 
-線上示範：<https://gleeful-valkyrie-494d4e.netlify.app>
+線上示範：<https://voyago-backend-c8fd.onrender.com>
 
-> 線上站台是**完整三層架構**：前端在 Netlify、後端 Spring Boot 在 Render、資料存在 TiDB Cloud（MySQL 相容）。註冊、下訂、收藏都會真的寫進資料庫，換裝置登入資料還在。
+> 線上站台是**完整三層架構**，部署成**單一網址**：Render 上的一個 Spring Boot 服務同時提供 Vue 網頁與 REST API，資料存在 TiDB Cloud（MySQL 相容）。註冊、下訂、收藏都會真的寫進資料庫，換裝置登入資料還在；推送到 GitHub `main` 就自動重新部署。
 >
 > 後端用的是免費方案，閒置 15 分鐘會休眠，**第一次打開可能要等 30–60 秒**喚醒，之後就正常速度。
 >
 > | 層 | 線上位址 |
 > | --- | --- |
-> | 前端 | <https://gleeful-valkyrie-494d4e.netlify.app> |
-> | 後端 API | <https://voyago-backend-c8fd.onrender.com/api/routes>（健康檢查：`/actuator/health`） |
+> | 網站（前台／後台） | <https://voyago-backend-c8fd.onrender.com>（後台：`/admin`） |
+> | API | <https://voyago-backend-c8fd.onrender.com/api/routes>（健康檢查：`/actuator/health`） |
 > | 資料庫 | TiDB Cloud Starter（東京），只接受 TLS 連線 |
 
 ```
@@ -57,7 +57,7 @@ flowchart LR
 | 資料庫 | MySQL 8（utf8mb4、InnoDB、外鍵 + 複合索引） |
 | 驗證 | JWT Bearer Token、BCrypt 密碼雜湊、Google ID Token 後端驗證 |
 | 測試 | JUnit 5、Mockito、Maven Surefire |
-| 部署 | Docker / docker-compose、Nginx、GitHub Actions、Netlify、Render（`render.yaml`） |
+| 部署 | Docker（前後端同一個映像）/ docker-compose、Nginx、GitHub Actions、Render（`render.yaml`）、TiDB Cloud |
 | API 文件 | springdoc-openapi（Swagger UI） |
 
 同一個專案裡並行 Spring Data JPA 和 MyBatis-Plus 兩套 ORM，是刻意的技術選型比較（理由見下方「設計取捨」），不是堆疊技術清單。
@@ -104,13 +104,13 @@ voyago-fullstack/
 ├── 資料庫/
 │   ├── 01_schema.sql    建庫建表（外鍵、複合索引、utf8mb4）
 │   └── 02_seed.sql      10 條歐洲行程 + 體驗帳號 + 示範訂單
-├── backend.Dockerfile   後端映像（Maven 依賴層快取、JRE Alpine、non-root）；放根目錄是因為 Render 不接受中文路徑
+├── Dockerfile           整站映像：先建前端再打包進 Spring Boot jar（多階段、依賴層快取、JRE Alpine、non-root）
 ├── docker-compose.yml   一鍵起三層（volume、初始化 SQL、健康檢查鏈）
 ├── render.yaml          Render Blueprint：後端部署設定
-├── netlify.toml         Netlify 設定：/api 反代、前端建置環境變數（前端部署設定的唯一來源）
+├── netlify.toml         舊 Netlify 網址：全部 301 轉址到正式站（舊連結不失效）
 ├── scripts/
-│   └── build_netlify_drop.py  依 netlify.toml 建置前端並打包，給「手動上傳」部署用
-└── DEPLOY.md            雲端部署逐步指南（TiDB Cloud → Render → Netlify）
+│   └── build_netlify_drop.py  依 netlify.toml 打包舊網址的轉址站，給 Netlify 手動上傳用
+└── DEPLOY.md            雲端部署逐步指南（TiDB Cloud → Render）
 ```
 
 四張表以外鍵串在一起：`member`、`route`、`booking`（連 member 和 route）、`message`（連 member）。
@@ -314,22 +314,25 @@ CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify`、前端 `
 
 ## 雲端部署
 
-三個免費平台就能把整包掛上去，設定檔都備好了：
+兩個免費平台就能把整包掛上去，部署成**一個網址**：
 
 | 元件 | 平台 | 設定檔 |
 | --- | --- | --- |
-| 前端 | Netlify | `netlify.toml`（建置環境變數、`/api` 反代、SPA fallback、快取 / 安全標頭） |
-| 後端 | Render（Blueprint） | `render.yaml` + `backend.Dockerfile`（健康檢查、環境變數、新加坡節點、免費方案的 JVM 調校） |
+| 網頁＋API | Render（Blueprint，推 `main` 自動部署） | `render.yaml` + 根目錄 `Dockerfile`：先 `vite build`，產物放進 Spring Boot 的 `classpath:/static/` 一起打包；`SpaWebConfig` 讓 `/tours/...`、`/admin` 這類前端路由回 `index.html`，`/api`、`/actuator` 找不到則照常 404 |
 | 資料庫 | TiDB Cloud Starter（MySQL 相容、TLS） | 在 SQL Editor 執行 `資料庫/01_schema.sql`；行程與示範會員由後端第一次啟動時自動寫入 |
 
-逐步指南見 [DEPLOY.md](DEPLOY.md)。線上站台已經是真三層：`netlify.toml` 裡 `VITE_DEMO_ONLY=false`、`VITE_MOCK_FALLBACK=false`。後者很重要——後端慢或出錯時，前端**不准**偷偷改用內建假資料，否則看起來有串接其實沒有。要回到純前端展示，把 `VITE_DEMO_ONLY` 改回 `true` 重新部署即可，前端程式碼不用動。
+前端的正式環境設定在 `前端/.env.production`（全是公開值）：`VITE_DEMO_ONLY=false`、`VITE_MOCK_FALLBACK=false`。後者很重要——後端慢或出錯時，前端**不准**偷偷改用內建假資料，否則看起來有串接其實沒有。API 與 WebSocket 都走同源，不需要 CORS 反代。
+
+為什麼選單一網址，而不是前端放 CDN、後端分開：作品集只有一個連結最好分享，也只有一條部署管線（推 GitHub 就更新）；代價是免費方案休眠時整個網站要等喚醒，而不只是資料。舊的 Netlify 網址保留成 301 轉址，避免已經分享出去的連結失效。
+
+逐步指南見 [DEPLOY.md](DEPLOY.md)。
 
 部署過程踩到、已經從根源修掉的幾個坑（都有對應的測試或 CI 檢查）：
 
-- **Render 不接受非 ASCII 路徑**：`./後端/Dockerfile` 被 Blueprint 判定無效 → Dockerfile 移到根目錄 `backend.Dockerfile`，docker-compose 也改用同一份，CI 用相同設定建映像。
+- **Render 不接受非 ASCII 路徑**：`./後端/Dockerfile` 被 Blueprint 判定無效 → Dockerfile 放在 repo 根目錄，docker-compose 也用同一份，CI 用相同設定建映像並檢查 jar 裡確實有前端網頁。
 - **沒有郵件伺服器時健康檢查永遠 DOWN**：Spring 的 mail health indicator 讓 `/actuator/health` 回 503，Render 判定部署失敗 → 關掉 mail 的健康檢查（寄信是選用功能），資料庫檢查保留。
 - **免費方案啟動逾時**：G1 + 完整 JIT 的背景執行緒在極少的 CPU 上跟啟動搶資源 → 正式環境用 SerialGC + C1，並且不讓 Hibernate 每次啟動跨區掃描 schema（`ddl-auto=none`，結構由 SQL 檔管理）。
-- **Netlify 不會在 redirect 規則裡代換環境變數**：原本 `${BACKEND_ORIGIN}` 的反代寫法實際上不會生效 → 後端網址直接寫在 `netlify.toml`（本來就是公開網址）。
+- **Netlify 不會在 redirect 規則裡代換環境變數**：原本 `${BACKEND_ORIGIN}` 的反代寫法實際上不會生效。改成單一網址部署後已經不需要反代。
 
 ---
 
@@ -351,13 +354,13 @@ CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify`、前端 `
 
 有些地方是刻意收斂範圍，不是沒想到：
 
-- 客服聊天走 STOMP over WebSocket 即時推播（`/ws-chat`，JWT 走 query string 驗證），但前後端分離部署（Netlify + Render）時，Netlify 的 redirect 代理不保證支援跨網域 WebSocket upgrade，這種拓樸下需設定 `VITE_WS_BASE` 直連後端 `wss://`，細節見 `netlify.toml` 註解；docker-compose 或後端同源部署則不受影響。
+- 客服聊天走 STOMP over WebSocket 即時推播（`/ws-chat`，JWT 走 query string 驗證）。線上是同源部署，直接連；若改回前後端分開部署，需設定 `VITE_WS_BASE` 直連後端 `wss://`（CDN 的反代不一定支援 WebSocket upgrade）。
 - 沒有金流。訂單只到「建立 / 取消 / 標記付款」，真的接金流要再處理狀態機和對帳；付款成功後會非同步寄送確認信（`spring-boot-starter-mail`），沒設定 `MAIL_HOST` 時安全跳過，不影響付款流程。
 - Controller 層已補 `MockMvc` + H2 的權限矩陣整合測試，但還沒有前端 E2E。
 - 圖片走外部連結加 `onerror` 備援，正式上線應該換成自己的物件儲存 + CDN。
 - 示範模式（`VITE_DEMO_ONLY=true`）的假資料存在 localStorage，換裝置或清快取就沒了，這是刻意的；後台的行程 / 訂單管理在示範模式下不能用，因為沒有可寫入的資料庫。
 - 免費方案的後端閒置會休眠，第一次請求要等喚醒。要隨時秒開就得升級付費方案。
-- Netlify 站台目前用「手動上傳」部署（`scripts/build_netlify_drop.py`），還沒接上 Git 自動部署；接上之後 `netlify.toml` 直接生效，不用改任何設定。
+- 免費方案的網址是 Render 依服務名稱配的（`voyago-backend-c8fd.onrender.com`）；要更好記的網址可以綁自己的網域。
 
 ---
 
