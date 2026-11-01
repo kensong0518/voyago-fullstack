@@ -55,6 +55,7 @@ class ApiPermissionIntegrationTest {
         r.setCountry("測試國");
         r.setDays(5);
         r.setPrice(10000);
+        r.setImageUrl("https://example.com/test-route.jpg");
         seedRoute = routes.save(r);
     }
 
