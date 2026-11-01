@@ -67,6 +67,14 @@ services:
         sync: false
         # 例： noreply@yourdomain.com
 
-      # ---------- JVM tuning（容器記憶體 512MB 友善） ----------
+      # ---------- JVM tuning（免費方案：512MB、只有一小部分 CPU） ----------
+      # SerialGC + 只用 C1 編譯器：少開背景執行緒，啟動時不跟主程式搶那一點 CPU。
+      # 用 G1 + 完整 JIT 時，Spring Boot 在免費方案啟動超過 Render 的部署時限。
       - key: JAVA_TOOL_OPTIONS
-        value: "-XX:MaxRAMPercentage=70.0 -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
+        value: "-XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Djava.security.egd=file:/dev/./urandom"
+
+      # ---------- 資料表由 資料庫/01_schema.sql 管理 ----------
+      # 正式環境不讓 Hibernate 每次啟動都跨區掃描整個 schema（ddl-auto=update），
+      # 也不讓它擅自改表；結構變更一律走 SQL 檔。本機開發仍沿用 application.yml 的 update。
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: none
