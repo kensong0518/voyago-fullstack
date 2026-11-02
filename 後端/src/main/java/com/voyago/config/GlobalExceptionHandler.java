@@ -1,5 +1,6 @@
 package com.voyago.config;
 
+import com.voyago.ai.AiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -58,6 +59,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "權限不足"));
+    }
+
+    /** AI 功能的錯誤：給使用者看得懂的訊息，細節（Google 回應、逾時原因）只寫 log。 */
+    @ExceptionHandler(AiException.class)
+    public ResponseEntity<Map<String, String>> handleAi(AiException ex) {
+        if (ex.reason() == AiException.Reason.RATE_LIMITED) {
+            log.info("AI rate limited: {}", ex.getMessage());
+        } else {
+            log.warn("AI error: {}", ex.getMessage());
+        }
+        return ResponseEntity.status(ex.reason().status).body(Map.of("error", ex.reason().userMessage));
     }
 
     /**
