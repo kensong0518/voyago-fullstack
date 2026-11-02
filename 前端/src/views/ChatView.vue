@@ -66,7 +66,7 @@ async function send() {
         <div class="flex items-center gap-3 border-b border-ink-100 bg-ink-50 px-5 py-3">
           <span class="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">A</span>
           <div>
-            <p class="text-sm font-bold">歐洲自助遊 客服中心</p>
+            <p class="text-sm font-bold">Voyago 客服中心</p>
             <p class="flex items-center gap-1 text-xs text-brand-600"><span class="h-1.5 w-1.5 rounded-full bg-brand-500" />{{ liveConnected ? "即時連線中" : "線上中" }}</p>
           </div>
         </div>

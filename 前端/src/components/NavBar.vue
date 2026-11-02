@@ -2,6 +2,7 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import BrandLogo from "./BrandLogo.vue";
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -50,9 +51,8 @@ onUnmounted(() => window.removeEventListener("resize", updateIndicator));
 <template>
   <header class="sticky top-0 z-50 border-b border-ink-100 bg-white/80 backdrop-blur">
     <nav class="container-x flex h-16 items-center justify-between">
-      <RouterLink to="/" class="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-        <span class="grid h-8 w-8 place-items-center rounded-xl bg-brand-600 text-white">歐</span>
-        <span>歐洲自助遊</span>
+      <RouterLink to="/" aria-label="Voyago 歐洲自助遊 首頁">
+        <BrandLogo />
       </RouterLink>
 
       <div ref="navEl" class="relative hidden items-center gap-1 md:flex">

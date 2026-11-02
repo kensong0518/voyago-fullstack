@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+import { SITE_NAME } from "../config/site";
 import { useRoute, useRouter } from "vue-router";
 import api from "../api/api";
 import { useAuthStore } from "../stores/auth";
@@ -41,6 +42,7 @@ async function loadAll() {
     const [d, list] = await Promise.all([api.getRoute(route.params.slug), api.getRoutes({})]);
     if (unmounted) return;                              // 元件已銷毀則放棄寫入
     data.value = d; allRoutes.value = list; activeImg.value = d.imageUrl;
+    document.title = `${d.name}｜${SITE_NAME}`;
   } catch {
     if (!unmounted) notFound.value = true;
   } finally {

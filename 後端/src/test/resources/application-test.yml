@@ -22,6 +22,7 @@ app:
     expiration-ms: 3600000
   cors:
     allowed-origins: http://localhost:5173
+  public-url: https://voyago.test/
   google:
     client-id: ""
   admin-emails: "boss@voyago.test"

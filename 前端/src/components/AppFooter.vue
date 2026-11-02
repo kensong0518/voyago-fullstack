@@ -1,13 +1,12 @@
-<script setup></script>
+<script setup>
+import BrandLogo from "./BrandLogo.vue";
+</script>
 
 <template>
   <footer class="border-t border-ink-100 bg-ink-50">
     <div class="container-x grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
       <div>
-        <div class="flex items-center gap-2 text-lg font-extrabold">
-          <span class="grid h-8 w-8 place-items-center rounded-xl bg-brand-600 text-white">歐</span>
-          歐洲自助遊
-        </div>
+        <BrandLogo size="sm" />
         <p class="mt-3 text-sm text-ink-500">用心策劃每一段深度旅程，讓世界成為你的日常。</p>
       </div>
       <div>
@@ -32,7 +31,7 @@
       </div>
     </div>
     <div class="border-t border-ink-100 py-5 text-center text-xs text-ink-400">
-      © {{ new Date().getFullYear() }} 歐洲自助遊 · 本站為展示網站，非真實旅遊服務。
+      © {{ new Date().getFullYear() }} Voyago 歐洲自助遊 · 本站為展示網站，非真實旅遊服務。
     </div>
   </footer>
 </template>
