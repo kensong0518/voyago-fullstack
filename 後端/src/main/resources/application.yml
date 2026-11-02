@@ -51,6 +51,19 @@ app:
     # 只有來自這些 IP 的請求，才會信任它附上的 X-Forwarded-For（例如雲端平台的負載平衡器）。
     # 留空＝完全不信任 X-Forwarded-For，一律用實際連線位址，避免被偽造 header 繞過限流。
     trusted-proxies: ${TRUSTED_PROXIES:}
+    # 部署在 Render 這類平台時設 true：容器只能透過平台代理連到，私有網段的連線就是代理，
+    # 才能從 X-Forwarded-For 取得真實訪客 IP（否則全站訪客共用一個限流額度）。詳見 ClientIpResolver
+    trust-private-network-proxies: ${TRUST_PRIVATE_NETWORK_PROXIES:false}
+    # 平台若另外提供可信任的訪客 IP header（例如 CF-Connecting-IP），填在這裡會優先採用
+    client-ip-header: ${CLIENT_IP_HEADER:}
+  ai:
+    gemini:
+      # 到 https://aistudio.google.com/apikey 免費申請；沒設定時 AI 顧問顯示「尚未啟用」，其他功能不受影響
+      api-key: ${GEMINI_API_KEY:}
+      # Google 維護的「最新 Flash」別名，模型改版不用改程式；要固定版本可設 GEMINI_MODEL
+      model: ${GEMINI_MODEL:gemini-flash-latest}
+    daily-limit-per-client: ${AI_DAILY_LIMIT:10}
+    daily-limit-global: ${AI_DAILY_GLOBAL_LIMIT:300}
   mail:
     # 訂單確認信寄件人；MAIL_HOST 沒設定時整個寄信流程會安全跳過，不影響付款主流程。
     from: ${MAIL_FROM:noreply@voyago.example.com}

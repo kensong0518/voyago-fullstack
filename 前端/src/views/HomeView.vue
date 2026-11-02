@@ -1,7 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import api from "../api/api";
 import RouteCard from "../components/RouteCard.vue";
+import AiAdvisorBox from "../components/AiAdvisorBox.vue";
+import AiAdvisorResults from "../components/AiAdvisorResults.vue";
+import { useAiAdvisor } from "../composables/useAiAdvisor";
 import { pickReviews, avatarColor } from "../data/content";
 
 const all = ref([]);
@@ -17,6 +20,12 @@ const destinations = computed(() => {
 });
 
 const testimonials = pickReviews(1, 3);
+
+// AI 行程顧問：問完自動捲到結果區（手機上結果在 Hero 下方，看不到會以為沒反應）
+const advisor = useAiAdvisor();
+watch(advisor.status, (s) => {
+  if (s === "loading") nextTick(() => document.getElementById("ai-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+});
 
 const stats = [
   { value: "20+", label: "歐洲國家" },
@@ -61,7 +70,10 @@ onMounted(async () => {
         <span class="chip bg-white/15 text-white">✦ 2026 全新歐洲行程上線</span>
         <h1 class="mt-5 text-4xl font-extrabold leading-tight sm:text-5xl lg:text-6xl">探索歐洲的<br /><span class="text-brand-400">下一段自助旅行</span></h1>
         <p class="mt-5 max-w-xl text-lg text-ink-200">從巴黎鐵塔到挪威峽灣，十條走過的歐洲路線任你挑。交通、住宿、門票先幫你搞定，剩下的時間留給你自己玩。</p>
-        <div class="mt-8 flex flex-wrap gap-3">
+        <div class="mt-8">
+          <AiAdvisorBox :advisor="advisor" />
+        </div>
+        <div class="mt-5 flex flex-wrap gap-3">
           <RouterLink to="/tours" class="btn-primary px-7 py-3 text-base">開始探索 →</RouterLink>
           <RouterLink to="/register" class="btn px-7 py-3 text-base bg-white/10 text-white hover:bg-white/20">免費加入會員</RouterLink>
         </div>
@@ -71,6 +83,8 @@ onMounted(async () => {
       </dl>
     </div>
   </section>
+
+  <AiAdvisorResults :advisor="advisor" />
 
   <!-- 熱門目的地 -->
   <section class="container-x py-16 sm:py-20">

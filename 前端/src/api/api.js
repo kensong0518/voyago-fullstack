@@ -431,6 +431,17 @@ export const api = {
   adminUpdateBookingStatus(id, status) {
     return adminOnly(async () => (await client.put(`/admin/bookings/${id}/status`, { status })).data);
   },
+
+  // ========== AI 行程顧問：一律打真實後端（示範模式沒有 AI，不用假資料冒充） ==========
+  aiStatus() {
+    if (DEMO_ONLY) return Promise.resolve({ enabled: false, dailyLimit: 0 });
+    return client.get("/ai/status").then((r) => r.data);
+  },
+  askAdvisor(query) {
+    if (DEMO_ONLY) return Promise.reject(new Error("示範模式沒有連接 AI 服務"));
+    // AI 回答可能要 10–20 秒，加上免費主機剛喚醒，逾時給寬一點
+    return client.post("/ai/advisor", { query }, { timeout: 90000 }).then((r) => r.data);
+  },
 };
 
 function adminOnly(real) {

@@ -47,6 +47,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/ws-chat/**").permitAll()   // WS 握手走獨立的 JWT 驗證（JwtHandshakeInterceptor），非一般 header
                 .requestMatchers(HttpMethod.GET, "/api/routes/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/ai/status").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/ai/advisor").permitAll()   // 免登入，用量由 AiUsageLimiter 控制
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
