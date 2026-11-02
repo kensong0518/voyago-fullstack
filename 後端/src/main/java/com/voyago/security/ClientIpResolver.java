@@ -23,9 +23,13 @@ import java.util.stream.Collectors;
  *   - 列在 TRUSTED_PROXIES 的位址；或
  *   - 開啟 TRUST_PRIVATE_NETWORK_PROXIES 時，來自私有網段（10.x、172.16–31.x、192.168.x、100.64/10、loopback）。
  *     適用於 Render 這類平台：容器只能透過平台代理連到，私有網段的連線一定是代理。
- * 採信時優先讀 app.security.client-ip-header（例如 Cloudflare 的 CF-Connecting-IP），
- * 沒有才用 X-Forwarded-For 的第一個位址（Render 會把真實訪客放在第一個）。
- * 兩者都沒有，或連線方不可信，就用 getRemoteAddr()——跟原本最保守的行為相同。
+ * 採信時：
+ *   - 有設定 app.security.client-ip-header（例如 CF-Connecting-IP）就只看它；沒帶就用 getRemoteAddr()，
+ *     不退回 X-Forwarded-For。Render 前面是 Cloudflare：CF-Connecting-IP 由 Cloudflare 依實際連線覆寫，
+ *     用戶端偽造不了；但 Render 的 X-Forwarded-For 會保留用戶端自己帶的值、只在後面附加，
+ *     實測帶 X-Forwarded-For: 1.2.3.4 就能換到新的 AI 額度，所以正式站必須設 CLIENT_IP_HEADER。
+ *   - 沒設定才用 X-Forwarded-For 的第一個位址（適用會清掉用戶端 header 的代理）。
+ * 連線方不可信時一律用 getRemoteAddr()——跟原本最保守的行為相同。
  */
 @Component
 public class ClientIpResolver {
@@ -50,10 +54,10 @@ public class ClientIpResolver {
         String remote = req.getRemoteAddr();
         String resolved = remote;
         if (isTrustedProxy(remote)) {
-            String fromHeader = clientIpHeader.isEmpty() ? null : firstIp(req.getHeader(clientIpHeader));
-            String fromXff = firstIp(req.getHeader("X-Forwarded-For"));
-            if (fromHeader != null) resolved = fromHeader;
-            else if (fromXff != null) resolved = fromXff;
+            String fromProxy = clientIpHeader.isEmpty()
+                    ? firstIp(req.getHeader("X-Forwarded-For"))
+                    : firstIp(req.getHeader(clientIpHeader));
+            if (fromProxy != null) resolved = fromProxy;
         }
         if (log.isDebugEnabled()) {
             // 部署後驗證平台實際送了哪些 header 用；平常不開（logging.level.com.voyago.security=DEBUG 才會印）

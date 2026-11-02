@@ -45,7 +45,8 @@ class ClientIpResolverTest {
     void configuredClientIpHeader_winsOverXff() {
         var resolver = new ClientIpResolver("", true, "CF-Connecting-IP");
         assertEquals("203.0.113.50", resolver.resolve(req("10.1.2.3", "6.6.6.6", "203.0.113.50")));
-        assertEquals("6.6.6.6", resolver.resolve(req("10.1.2.3", "6.6.6.6", null)));   // header 沒帶就退回 XFF
+        // 有指定可信 header 時完全不看 XFF（Render 會保留用戶端偽造的 XFF）；沒帶就用連線位址
+        assertEquals("10.1.2.3", resolver.resolve(req("10.1.2.3", "6.6.6.6", null)));
     }
 
     @Test
