@@ -108,6 +108,13 @@ class GeminiClientTest {
     }
 
     @Test
+    void nonJsonBody_isBadResponse_notTimeout() {
+        responseBody = "<html>502 Bad Gateway</html>";
+        AiException ex = assertThrows(AiException.class, () -> client("k", 5).generateJson("s", "u", Map.of()));
+        assertEquals(AiException.Reason.BAD_RESPONSE, ex.reason());
+    }
+
+    @Test
     void blockedOrEmptyAnswer_isBadResponse() {
         responseBody = "{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}";
         AiException ex = assertThrows(AiException.class, () -> client("k", 5).generateJson("s", "u", Map.of()));

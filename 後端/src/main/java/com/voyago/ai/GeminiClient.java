@@ -10,9 +10,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -90,6 +92,15 @@ public class GeminiClient implements LlmClient {
             throw new AiException(AiException.Reason.TIMEOUT, detail, e);
         } catch (ResourceAccessException e) {
             throw new AiException(AiException.Reason.TIMEOUT, "連線失敗或逾時：" + e.getMessage(), e);
+        } catch (RestClientException e) {
+            // 讀回應內容時逾時，Spring 會包成一般的 RestClientException（不是 ResourceAccessException），
+            // 要往下找原因：是 I/O（逾時、斷線）就當作逾時，否則是回應格式有問題
+            boolean io = false;
+            for (Throwable c = e; c != null; c = c.getCause()) {
+                if (c instanceof IOException) { io = true; break; }
+            }
+            throw new AiException(io ? AiException.Reason.TIMEOUT : AiException.Reason.BAD_RESPONSE,
+                    "讀取回應失敗：" + e.getMessage(), e);
         }
         return extractText(res);
     }
