@@ -268,4 +268,48 @@ class ReviewCouponIntegrationTest {
            .andExpect(jsonPath("$.totalPrice").value(104000))
            .andExpect(jsonPath("$.discountAmount").value(0));
     }
+
+    @Test
+    void checkout_applySwapAndRemoveCoupon_onPendingBooking() throws Exception {
+        coupon("TA10", "PERCENT", 10, 0, null);
+        coupon("TA3000", "AMOUNT", 3000, 0, null);
+        Member m = member("王小明");
+        String body = json.writeValueAsString(Map.of("routeId", route.getId(), "people", 2,
+                "travelDate", LocalDate.now().plusDays(40).toString()));
+        long id = json.readTree(mvc.perform(post("/api/bookings").header("Authorization", auth(m))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andReturn().getResponse().getContentAsString()).get("id").asLong();
+        String url = "/api/bookings/" + id + "/coupon";
+
+        mvc.perform(put(url).header("Authorization", auth(m)).contentType(MediaType.APPLICATION_JSON)
+                   .content("{\"code\":\"ta10\"}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.totalPrice").value(93600))
+           .andExpect(jsonPath("$.discountAmount").value(10400));
+        assertEquals(1, usedCount("TA10"));
+
+        // 換一張：舊的次數還回去
+        mvc.perform(put(url).header("Authorization", auth(m)).contentType(MediaType.APPLICATION_JSON)
+                   .content("{\"code\":\"TA3000\"}"))
+           .andExpect(jsonPath("$.totalPrice").value(101000))
+           .andExpect(jsonPath("$.couponCode").value("TA3000"));
+        assertEquals(0, usedCount("TA10"));
+        assertEquals(1, usedCount("TA3000"));
+
+        // 別人不能動我的訂單
+        mvc.perform(delete(url).header("Authorization", auth(member("陌生人"))))
+           .andExpect(status().isForbidden());
+
+        mvc.perform(delete(url).header("Authorization", auth(m)))
+           .andExpect(jsonPath("$.totalPrice").value(104000))
+           .andExpect(jsonPath("$.discountAmount").value(0));
+        assertEquals(0, usedCount("TA3000"));
+
+        // 付款後不能再改
+        mvc.perform(post("/api/bookings/" + id + "/pay").header("Authorization", auth(m)))
+           .andExpect(status().isOk());
+        mvc.perform(put(url).header("Authorization", auth(m)).contentType(MediaType.APPLICATION_JSON)
+                   .content("{\"code\":\"TA10\"}"))
+           .andExpect(status().isConflict());
+    }
 }

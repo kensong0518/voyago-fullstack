@@ -135,4 +135,48 @@ public class BookingServiceImpl implements BookingService {
             coupons.release(b.getCouponCode());   // 優惠碼次數還回去，會員之後也能再用
         }
     }
+
+    @Override
+    @Transactional
+    public BookingDto applyCoupon(Long memberId, Long bookingId, String code) {
+        Booking b = ownPending(memberId, bookingId);
+        int subtotal = b.getTotalPrice() + b.getDiscountAmount();   // 原價
+        if (b.getCouponCode() != null) {
+            if (b.getCouponCode().equals(CouponService.normalize(code))) return BookingDto.from(b);
+            coupons.release(b.getCouponCode());
+            b.setCouponCode(null);                                   // 先放掉舊的，「每人限用一次」才不會算到自己這筆
+            bookings.saveAndFlush(b);
+        }
+        CouponService.Applied applied = coupons.redeem(code, subtotal, memberId);
+        b.setCouponCode(applied.coupon().getCode());
+        b.setDiscountAmount(applied.discount());
+        b.setTotalPrice(subtotal - applied.discount());
+        return BookingDto.from(bookings.save(b));
+    }
+
+    @Override
+    @Transactional
+    public BookingDto removeCoupon(Long memberId, Long bookingId) {
+        Booking b = ownPending(memberId, bookingId);
+        if (b.getCouponCode() != null) {
+            coupons.release(b.getCouponCode());
+            b.setTotalPrice(b.getTotalPrice() + b.getDiscountAmount());
+            b.setCouponCode(null);
+            b.setDiscountAmount(0);
+            bookings.save(b);
+        }
+        return BookingDto.from(b);
+    }
+
+    private Booking ownPending(Long memberId, Long bookingId) {
+        Booking b = bookings.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到訂單"));
+        if (!b.getMember().getId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限修改此訂單");
+        }
+        if (!"PENDING".equals(b.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "只有待付款的訂單可以使用優惠碼");
+        }
+        return b;
+    }
 }
