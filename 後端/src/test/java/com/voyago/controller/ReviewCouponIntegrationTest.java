@@ -125,7 +125,13 @@ class ReviewCouponIntegrationTest {
            .andExpect(status().isForbidden());
     }
 
+    /**
+     * 不包在測試交易裡：共用一個交易時，MyBatis 的 session 快取會讓「先讀一次」之後一直讀到舊值，
+     * 測不出 Caffeine 快取有沒有被清。正式環境每個請求都是獨立交易，這樣才貼近實際情況。
+     * （資料用不重複的代稱與 email，不會影響其他測試。）
+     */
     @Test
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     void reviews_recomputeAverage_andShowOnTourImmediately() throws Exception {
         Member a = member("王小明"), b = member("陳大文");
         paidBooking(a); paidBooking(b);
