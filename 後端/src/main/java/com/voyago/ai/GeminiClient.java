@@ -6,16 +6,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,33 +27,36 @@ import java.util.Map;
  * - 用 responseMimeType + responseSchema 要求模型直接輸出符合格式的 JSON（結構化輸出）。
  * - 模型名稱可由 GEMINI_MODEL 設定；預設用 Google 維護的「最新 Flash」別名，模型改版時不用改程式。
  * - 思考程度（thinkingLevel）預設 low：Gemini 3 之後的 Flash 預設會先「思考」很久，
- *   挑行程這種有明確資料的任務不需要，實測預設值會讓回應超過 25 秒。
- *   若換到不支援這個設定的模型（回 400 且訊息提到 thinking），自動改成不帶設定重試，之後也不再帶。
+ *   挑行程這種有明確資料的任務不需要。若換到不支援這個設定的模型（回 400 且訊息提到 thinking），
+ *   自動改成不帶設定重試，之後也不再帶。
+ * - HTTP 用 JDK 內建的 java.net.http.HttpClient（支援 HTTP/2），整個請求（含讀完回應）一個逾時上限；
+ *   回應先完整讀成字串再自己解析，狀態碼與內容都看得到，出錯時 log 才講得清楚。
  */
 @Component
 public class GeminiClient implements LlmClient {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiClient.class);
 
-    private final RestClient http;
+    private final HttpClient http;
     private final ObjectMapper json;
     private final String apiKey;
     private final String model;
+    private final String baseUrl;
+    private final Duration timeout;
     private volatile String thinkingLevel;    // 空字串＝不指定，用模型預設
 
-    public GeminiClient(RestClient.Builder builder, ObjectMapper json,
+    public GeminiClient(ObjectMapper json,
                         @Value("${app.ai.gemini.api-key:}") String apiKey,
                         @Value("${app.ai.gemini.model:gemini-flash-latest}") String model,
                         @Value("${app.ai.gemini.base-url:https://generativelanguage.googleapis.com}") String baseUrl,
                         @Value("${app.ai.gemini.timeout-seconds:40}") int timeoutSeconds,
                         @Value("${app.ai.gemini.thinking-level:low}") String thinkingLevel) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5_000);
-        factory.setReadTimeout(timeoutSeconds * 1_000);
-        this.http = builder.baseUrl(baseUrl).requestFactory(factory).build();
+        this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         this.json = json;
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.model = model.trim();
+        this.baseUrl = baseUrl.replaceAll("/+$", "");
+        this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.thinkingLevel = thinkingLevel == null ? "" : thinkingLevel.trim();
     }
 
@@ -96,45 +99,50 @@ public class GeminiClient implements LlmClient {
                 "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", userInput)))),
                 "generationConfig", generationConfig);
 
+        HttpResponse<String> res;
+        long t0 = System.nanoTime();
         try {
-            return http.post()
-                    .uri("/v1beta/models/{model}:generateContent", model)
+            HttpRequest req = HttpRequest.newBuilder(URI.create(baseUrl + "/v1beta/models/" + model + ":generateContent"))
+                    .timeout(timeout)
                     .header("x-goog-api-key", apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(JsonNode.class);
-        } catch (RestClientResponseException e) {
-            HttpStatusCode code = e.getStatusCode();
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body), StandardCharsets.UTF_8))
+                    .build();
+            res = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (HttpTimeoutException e) {
+            throw new AiException(AiException.Reason.TIMEOUT, "超過 " + timeout.toSeconds() + " 秒沒有回應", e);
+        } catch (IOException e) {
+            throw new AiException(AiException.Reason.TIMEOUT, "連線失敗：" + e, e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AiException(AiException.Reason.TIMEOUT, "請求被中斷", e);
+        }
+        long ms = (System.nanoTime() - t0) / 1_000_000;
+        int code = res.statusCode();
+        log.info("Gemini {} 回應 HTTP {}，{} ms，thinkingLevel={}", model, code, ms, level.isEmpty() ? "預設" : level);
+
+        if (code / 100 != 2) {
             // 回應內容可能很長，只記前 300 字；不會含金鑰（金鑰在 request header）
-            String detail = "HTTP " + code.value() + " " + abbreviate(e.getResponseBodyAsString());
-            if (code.value() == 400 && !level.isEmpty()
-                    && e.getResponseBodyAsString().toLowerCase().contains("thinking")) {
+            String detail = "HTTP " + code + " " + abbreviate(res.body());
+            if (code == 400 && !level.isEmpty() && res.body() != null && res.body().toLowerCase().contains("thinking")) {
                 throw new ThinkingUnsupported(detail);
             }
-            if (code.value() == 429) throw new AiException(AiException.Reason.QUOTA_EXCEEDED, detail, e);
-            if (code.value() == 401 || code.value() == 403) {
+            if (code == 429) throw new AiException(AiException.Reason.QUOTA_EXCEEDED, detail);
+            if (code == 401 || code == 403) {
                 log.error("Gemini 金鑰無效或沒有權限：{}", detail);
-                throw new AiException(AiException.Reason.NOT_CONFIGURED, detail, e);
+                throw new AiException(AiException.Reason.NOT_CONFIGURED, detail);
             }
-            if (code.value() == 404) {
+            if (code == 404) {
                 log.error("Gemini 找不到模型 {}，請檢查 GEMINI_MODEL：{}", model, detail);
-                throw new AiException(AiException.Reason.NOT_CONFIGURED, detail, e);
+                throw new AiException(AiException.Reason.NOT_CONFIGURED, detail);
             }
-            throw new AiException(AiException.Reason.TIMEOUT, detail, e);
-        } catch (ResourceAccessException e) {
-            throw new AiException(AiException.Reason.TIMEOUT, "連線失敗或逾時：" + e.getMessage(), e);
-        } catch (RestClientException e) {
-            // 讀回應內容時逾時，Spring 會包成一般的 RestClientException（不是 ResourceAccessException），
-            // 要往下找原因：JSON 解析失敗是回應格式有問題；其他 I/O（逾時、斷線）才當作逾時。
-            // 注意 Jackson 的解析錯誤本身也是 IOException 的子類別，所以要先判斷它。
-            boolean io = false;
-            for (Throwable c = e; c != null; c = c.getCause()) {
-                if (c instanceof JsonProcessingException) { io = false; break; }
-                if (c instanceof IOException) io = true;
-            }
-            throw new AiException(io ? AiException.Reason.TIMEOUT : AiException.Reason.BAD_RESPONSE,
-                    "讀取回應失敗：" + e.getMessage(), e);
+            if (code == 400) log.error("Gemini 拒絕請求：{}", detail);
+            throw new AiException(code >= 500 ? AiException.Reason.TIMEOUT : AiException.Reason.BAD_RESPONSE, detail);
+        }
+        try {
+            return json.readTree(res.body());
+        } catch (JsonProcessingException e) {
+            throw new AiException(AiException.Reason.BAD_RESPONSE, "回應不是 JSON：" + abbreviate(res.body()), e);
         }
     }
 
