@@ -15,5 +15,7 @@ public record BookingConfirmationEmail(
         String routeName,
         LocalDate travelDate,
         Integer people,
-        Integer totalPrice
+        Integer totalPrice,
+        String couponCode,
+        Integer discountAmount
 ) {}

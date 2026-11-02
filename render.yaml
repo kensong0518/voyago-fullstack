@@ -52,6 +52,14 @@ services:
         sync: false
         # https://aistudio.google.com/apikey 免費申請；沒設定時 AI 顧問顯示「尚未啟用」
 
+      # ---------- 訂單確認信（Render 免費方案封鎖 SMTP，改用 Google Apps Script 寄信） ----------
+      - key: MAIL_RELAY_URL
+        sync: false
+        # Apps Script 部署成網頁應用程式後的 /exec 網址，見 scripts/mail-relay/README.md
+      - key: MAIL_RELAY_SECRET
+        generateValue: true
+        # Render 自動產生；複製到 Apps Script 的「指令碼屬性」RELAY_SECRET，兩邊一致才會寄
+
       # ---------- Google 登入（後台要靠它） ----------
       - key: GOOGLE_CLIENT_ID
         sync: false

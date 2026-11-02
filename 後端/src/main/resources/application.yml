@@ -67,6 +67,10 @@ app:
   mail:
     # 訂單確認信寄件人；MAIL_HOST 沒設定時整個寄信流程會安全跳過，不影響付款主流程。
     from: ${MAIL_FROM:noreply@voyago.example.com}
+    # Google Apps Script 寄信服務（scripts/mail-relay/）。Render 免費方案封鎖 SMTP，雲端用這個寄確認信；
+    # 兩個都設定才會啟用，優先於 MAIL_HOST
+    relay-url: ${MAIL_RELAY_URL:}
+    relay-secret: ${MAIL_RELAY_SECRET:}
 
 # 只暴露 health 與 info，不洩漏 env / heapdump / 其他敏感端點
 management:

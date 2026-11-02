@@ -29,4 +29,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                    "WHERE (:status = '' OR b.status = :status) ORDER BY b.createdAt DESC, b.id DESC",
            countQuery = "SELECT COUNT(b) FROM Booking b WHERE (:status = '' OR b.status = :status)")
     Page<Booking> findAllForAdmin(@Param("status") String status, Pageable pageable);
+
+    /** 評價資格：這位會員有沒有已付款（CONFIRMED）的這個行程訂單。 */
+    boolean existsByMemberIdAndRouteIdAndStatus(Long memberId, Long routeId, String status);
+
+    /** 每位會員每個優惠碼只能用一次（已取消的訂單不算）。 */
+    boolean existsByMemberIdAndCouponCodeAndStatusNot(Long memberId, String couponCode, String status);
 }

@@ -40,10 +40,10 @@ public class Route {
     private Integer price;
 
     @Column(nullable = false)
-    private Double rating = 4.6;
+    private Double rating = 0.0;     // 由評價自動計算（ReviewServiceImpl），沒有評價時為 0
 
     @Column(nullable = false)
-    private Integer reviews = 0;
+    private Integer reviews = 0;     // 評價數，同上
 
     @Column(name = "image_url", nullable = false, length = 500)
     private String imageUrl;

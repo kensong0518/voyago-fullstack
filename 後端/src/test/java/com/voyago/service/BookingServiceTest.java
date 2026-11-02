@@ -33,6 +33,7 @@ class BookingServiceTest {
     @Mock RouteRepository routes;
     @Mock MemberRepository members;
     @Mock BookingEmailService emailService;
+    @Mock CouponService coupons;
 
     // 測試固定在 2026-01-01（UTC），讓「出發日不能早於今天」的驗證不受執行當下日期影響
     private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
@@ -40,7 +41,7 @@ class BookingServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new BookingServiceImpl(bookingDao, bookings, routes, members, clock, emailService);
+        service = new BookingServiceImpl(bookingDao, bookings, routes, members, clock, emailService, coupons);
     }
 
     @Test
