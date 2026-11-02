@@ -27,11 +27,14 @@ public class AdminManageServiceImpl implements AdminManageService {
     private final RouteRepository routes;
     private final BookingRepository bookings;
     private final CouponRepository coupons;
+    private final AuditService audit;
 
-    public AdminManageServiceImpl(RouteRepository routes, BookingRepository bookings, CouponRepository coupons) {
+    public AdminManageServiceImpl(RouteRepository routes, BookingRepository bookings, CouponRepository coupons,
+                                  AuditService audit) {
         this.routes = routes;
         this.bookings = bookings;
         this.coupons = coupons;
+        this.audit = audit;
     }
 
     // ---------- 行程 ----------
@@ -52,7 +55,9 @@ public class AdminManageServiceImpl implements AdminManageService {
         }
         Route r = new Route();
         apply(r, req);
-        return RouteDto.from(routes.saveAndFlush(r));
+        routes.saveAndFlush(r);
+        audit.record("ROUTE_CREATE", "ROUTE", r.getId(), r.getName() + "（" + r.getSlug() + "，NT$" + r.getPrice() + "）");
+        return RouteDto.from(r);
     }
 
     @Override
@@ -68,8 +73,17 @@ public class AdminManageServiceImpl implements AdminManageService {
                 .ifPresent(other -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "網址代稱已被其他行程使用");
                 });
+        String before = summary(r);
         apply(r, req);
-        return RouteDto.from(routes.saveAndFlush(r));
+        routes.saveAndFlush(r);
+        String after = summary(r);
+        audit.record("ROUTE_UPDATE", "ROUTE", id, r.getName() + (before.equals(after) ? "（內容文字修改）" : "：" + before + " → " + after));
+        return RouteDto.from(r);
+    }
+
+    /** 稽核紀錄要看得出改了什麼：價格、天數、精選這些影響營運的欄位。 */
+    private static String summary(Route r) {
+        return "NT$" + r.getPrice() + "／" + r.getDays() + " 天" + (Boolean.TRUE.equals(r.getFeatured()) ? "／精選" : "");
     }
 
     @Override
@@ -78,15 +92,15 @@ public class AdminManageServiceImpl implements AdminManageService {
         @CacheEvict(cacheNames = "routeBySlug", allEntries = true)
     })
     public void deleteRoute(Long id) {
-        if (!routes.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到此行程");
-        }
+        Route existing = routes.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到此行程"));
         // 訂單是交易紀錄，不能因為行程下架就跟著消失
         if (bookings.existsByRouteId(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "這個行程已有訂單，不能刪除");
         }
         routes.deleteById(id);
         routes.flush();
+        audit.record("ROUTE_DELETE", "ROUTE", id, existing.getName() + "（" + existing.getSlug() + "）");
     }
 
     private void apply(Route r, RouteUpsertRequest req) {
@@ -140,7 +154,12 @@ public class AdminManageServiceImpl implements AdminManageService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "這筆訂單使用的優惠碼已用完或停用，無法恢復");
             }
         }
+        String from = b.getStatus();
         b.setStatus(status);
-        return AdminBookingDto.from(bookings.save(b));
+        bookings.save(b);
+        if (!status.equals(from)) {
+            audit.record("BOOKING_STATUS", "BOOKING", id, from + " → " + status + "（" + b.getMember().getEmail() + "，NT$" + b.getTotalPrice() + "）");
+        }
+        return AdminBookingDto.from(b);
     }
 }

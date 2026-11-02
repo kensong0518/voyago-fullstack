@@ -24,9 +24,11 @@ public class MemberServiceImpl implements MemberService {
     private final MemberDao memberDao;
     private final PasswordEncoder encoder;
     private final BookingRepository bookings;
+    private final AuditService audit;
 
     public MemberServiceImpl(MemberRepository members, MemberDao memberDao, PasswordEncoder encoder,
-                             BookingRepository bookings) {
+                             BookingRepository bookings, AuditService audit) {
+        this.audit = audit;
         this.members = members;
         this.memberDao = memberDao;
         this.encoder = encoder;
@@ -75,6 +77,7 @@ public class MemberServiceImpl implements MemberService {
         m.setRole(req.role() == null || req.role().isBlank() ? "MEMBER" : req.role());
         m.setProvider("LOCAL");
         members.save(m);
+        audit.record("MEMBER_CREATE", "MEMBER", m.getId(), m.getEmail() + "（" + m.getRole() + "）");
         return MemberDto.from(m);
     }
 
@@ -89,6 +92,7 @@ public class MemberServiceImpl implements MemberService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到會員"));
         requireNoActiveBookings(targetId);
         members.delete(m);
+        audit.record("MEMBER_DELETE", "MEMBER", targetId, m.getEmail());
     }
 
     @Override

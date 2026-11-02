@@ -35,4 +35,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     /** 每位會員每個優惠碼只能用一次（已取消的訂單不算）。 */
     boolean existsByMemberIdAndCouponCodeAndStatusNot(Long memberId, String couponCode, String status);
+
+    /** 後台報表：某時間之後建立的訂單（連同行程），在服務層依日期彙總。 */
+    @Query("SELECT b FROM Booking b JOIN FETCH b.route WHERE b.createdAt >= :from")
+    java.util.List<Booking> findCreatedSince(@Param("from") java.time.LocalDateTime from);
 }
