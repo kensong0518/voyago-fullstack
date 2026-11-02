@@ -25,7 +25,7 @@ import java.util.Map;
  *
  * - 金鑰放在 x-goog-api-key header，不放網址參數，避免出現在任何 log 或錯誤訊息裡。
  * - 用 responseMimeType + responseSchema 要求模型直接輸出符合格式的 JSON（結構化輸出）。
- * - 模型名稱可由 GEMINI_MODEL 設定；預設用 Google 維護的「最新 Flash」別名，模型改版時不用改程式。
+ * - 模型名稱可由 GEMINI_MODEL 設定；預設 gemini-3.5-flash-lite（低延遲）。
  * - 思考程度（thinkingLevel）預設 low：Gemini 3 之後的 Flash 預設會先「思考」很久，
  *   挑行程這種有明確資料的任務不需要。若換到不支援這個設定的模型（回 400 且訊息提到 thinking），
  *   自動改成不帶設定重試，之後也不再帶。
@@ -47,7 +47,7 @@ public class GeminiClient implements LlmClient {
 
     public GeminiClient(ObjectMapper json,
                         @Value("${app.ai.gemini.api-key:}") String apiKey,
-                        @Value("${app.ai.gemini.model:gemini-flash-latest}") String model,
+                        @Value("${app.ai.gemini.model:gemini-3.5-flash-lite}") String model,
                         @Value("${app.ai.gemini.base-url:https://generativelanguage.googleapis.com}") String baseUrl,
                         @Value("${app.ai.gemini.timeout-seconds:40}") int timeoutSeconds,
                         @Value("${app.ai.gemini.thinking-level:low}") String thinkingLevel) {
