@@ -466,6 +466,39 @@ export const api = {
     return adminOnly(async () => (await client.put(`/admin/bookings/${id}/status`, { status })).data);
   },
 
+  // ---- 後台 D：報表、CSV、操作紀錄、優惠碼 ----
+  adminReport(days = 30) {
+    return adminOnly(async () => (await client.get("/admin/reports", { params: { days } })).data);
+  },
+  // CSV 要帶登入 token，不能用一般連結下載：用 axios 取回 Blob，再交給瀏覽器存檔
+  adminExportCsv(kind, params = {}) {
+    return adminOnly(async () => {
+      const res = await client.get(`/admin/export/${kind}.csv`, { params, responseType: "blob" });
+      const disposition = res.headers["content-disposition"] || "";
+      const name = /filename="?([^";]+)"?/.exec(disposition)?.[1] || `voyago-${kind}.csv`;
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return { name, rows: Number(res.headers["x-row-count"] || 0) };
+    });
+  },
+  adminAuditLog({ page = 0, size = 20 } = {}) {
+    return adminOnly(async () => (await client.get("/admin/audit", { params: { page, size } })).data);
+  },
+  adminListCoupons() {
+    return adminOnly(async () => (await client.get("/admin/coupons")).data);
+  },
+  adminCreateCoupon(payload) {
+    return adminOnly(async () => (await client.post("/admin/coupons", payload)).data);
+  },
+  adminUpdateCoupon(id, payload) {
+    return adminOnly(async () => (await client.put(`/admin/coupons/${id}`, payload)).data);
+  },
+  adminDeleteCoupon(id) {
+    return adminOnly(async () => (await client.delete(`/admin/coupons/${id}`)).data);
+  },
+
   // ========== AI 行程顧問：一律打真實後端（示範模式沒有 AI，不用假資料冒充） ==========
   aiStatus() {
     if (DEMO_ONLY) return Promise.resolve({ enabled: false, dailyLimit: 0 });
