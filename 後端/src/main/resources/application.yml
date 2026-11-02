@@ -39,6 +39,8 @@ app:
     expiration-ms: 604800000
   cors:
     allowed-origins: ${FRONTEND_ORIGIN:http://localhost:5173}
+  # 網站公開網址：行程頁分享預覽的 og:url。沒設就用 FRONTEND_ORIGIN（單一網址部署時兩者相同）
+  public-url: ${PUBLIC_URL:${FRONTEND_ORIGIN:http://localhost:5173}}
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
   # 後台管理員：逗號分隔的 Email，用 Google 登入時自動成為 STAFF

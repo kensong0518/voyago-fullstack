@@ -1,13 +1,88 @@
 <!doctype html>
-<html lang="zh-Hant-TW">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>歐洲自助遊 — 已搬家</title>
-<meta http-equiv="refresh" content="0; url=https://voyago-backend-c8fd.onrender.com/">
+<title>Voyago 歐洲自助遊</title>
+<meta name="theme-color" content="#0a9065">
 <link rel="canonical" href="https://voyago-backend-c8fd.onrender.com/">
+<meta name="description" content="Voyago 歐洲自助遊：說出你想怎麼玩，AI 行程顧問從真實行程裡幫你挑。Vue 3 + Spring Boot + MySQL 全端作品，含會員前台與管理後台。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Voyago 歐洲自助遊">
+<meta property="og:title" content="Voyago 歐洲自助遊 — 你的歐洲旅程從這裡開始">
+<meta property="og:description" content="說出你想怎麼玩，AI 行程顧問從真實行程裡幫你挑。Vue 3 + Spring Boot + MySQL 全端作品，含會員前台與管理後台。">
+<meta property="og:image" content="https://voyago-backend-c8fd.onrender.com/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230a9065'/%3E%3Cpath d='M17 19 L32 47 L47 19' fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='47' cy='19' r='4.5' fill='%2379e2b7'/%3E%3C/svg%3E">
+<style>
+  :root { --brand: #0a9065; --brand-soft: #79e2b7; --ink: #222733; --muted: #62718c; --bg: #f6f7f9; }
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); color: var(--ink);
+         font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; }
+  .card { width: 100%; max-width: 420px; text-align: center; background: #fff; border-radius: 24px; padding: 40px 28px;
+          box-shadow: 0 1px 2px rgba(20,23,31,.04), 0 12px 32px -12px rgba(20,23,31,.18); }
+  .brand { display: inline-flex; align-items: center; gap: 12px; }
+  .brand svg { width: 52px; height: 52px; }
+  .name { font-size: 30px; font-weight: 900; letter-spacing: -.5px; line-height: 1; text-align: left; }
+  .sub { font-size: 12px; letter-spacing: .3em; color: var(--muted); margin-top: 6px; }
+  .bar { height: 6px; background: #eceef2; border-radius: 99px; overflow: hidden; margin: 32px 0 16px; }
+  .bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--brand), var(--brand-soft));
+              border-radius: 99px; transition: width .8s ease-out; }
+  #status { font-weight: 700; }
+  .hint { margin-top: 8px; font-size: 14px; color: var(--muted); line-height: 1.7; }
+  a.go { display: inline-block; margin-top: 20px; color: var(--brand); font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) { .bar span { transition: none; } }
+</style>
 </head>
 <body>
-<p>網站已搬到新網址：<a href="https://voyago-backend-c8fd.onrender.com/">https://voyago-backend-c8fd.onrender.com/</a></p>
+<main class="card">
+  <div class="brand" aria-label="Voyago 歐洲自助遊">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#0a9065"/>
+      <path d="M17 19 L32 47 L47 19" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="47" cy="19" r="4.5" fill="#79e2b7"/></svg>
+    <div><div class="name">Voyago</div><div class="sub">歐洲自助遊</div></div>
+  </div>
+  <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+  <p id="status" role="status" aria-live="polite">正在連線…</p>
+  <p class="hint" id="hint">網站使用免費雲端主機，閒置一段時間會休眠，<br>第一次開啟約需 30–60 秒喚醒，請稍候。</p>
+  <noscript><p class="hint"><a class="go" href="https://voyago-backend-c8fd.onrender.com/">直接前往網站 →</a></p></noscript>
+  <a class="go" id="go" href="https://voyago-backend-c8fd.onrender.com/" hidden>直接前往網站 →</a>
+</main>
+<script>
+  // 舊網址（Netlify，秒開）→ 一邊顯示這個畫面，一邊喚醒正式站，醒了就帶著原本的路徑跳過去。
+  // 判斷「醒了沒」用圖片載入：休眠中 Render 回的是一頁 HTML（圖片載入失敗），醒來後才會是真正的 SVG。
+  // 用圖片而不是 fetch，是因為跨網域讀不到 fetch 的結果，圖片的 onload / onerror 則不受限制。
+  (function () {
+    var SITE = "https://voyago-backend-c8fd.onrender.com";
+    var target = SITE + location.pathname + location.search + location.hash;
+    var started = Date.now();
+    var bar = document.getElementById("bar"), status = document.getElementById("status");
+    var go = document.getElementById("go");
+    go.href = target;
+
+    function progress() {
+      var s = (Date.now() - started) / 1000;
+      bar.style.width = Math.min(92, 8 + s * 1.6) + "%";          // 約 55 秒走到九成，醒了才補滿
+      if (s > 4) status.textContent = "正在喚醒伺服器…（" + Math.round(s) + " 秒）";
+      if (s > 20) go.hidden = false;                              // 等太久也能自己點過去
+      if (s > 90) status.textContent = "伺服器比平常慢，可以點下面的連結直接前往";
+    }
+
+    function probe() {
+      var img = new Image();
+      img.onload = function () {
+        bar.style.width = "100%";
+        status.textContent = "準備好了，帶你過去…";
+        location.replace(target);                                  // replace：上一頁不會回到這個等待畫面
+      };
+      img.onerror = function () { progress(); setTimeout(probe, 3000); };
+      img.src = SITE + "/favicon.svg?wake=" + Date.now();
+    }
+    progress();
+    probe();
+  })();
+</script>
 </body>
 </html>

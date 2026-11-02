@@ -1,0 +1,38 @@
+name: Keep warm（上班時間保持網站清醒）
+
+# Render 免費方案閒置 15 分鐘會休眠，下一個訪客要等 30–60 秒喚醒。
+# 面試官多半在上班時間看作品，所以只在台灣時間「週一到週五 09:00–18:00」每 10 分鐘戳一次健康檢查。
+#
+# 額度：Render 免費方案每月 750 小時，同帳號的服務共用。這裡約用 10 小時 × 22 天 ≈ 220 小時，
+# 其餘時間照常休眠，不會吃掉其他服務（例如宜居）的額度。全天候保持清醒則會超額，月底服務會被暫停。
+#
+# 注意：GitHub 對公開 repo 的排程有兩個特性——
+#   1. 排程可能延遲幾分鐘，偶爾跳過一次（10 分鐘間隔仍在 15 分鐘休眠門檻內）；
+#   2. repo 連續 60 天沒有任何活動，排程會被自動停用，要到 Actions 頁面手動重新啟用。
+
+on:
+  schedule:
+    # cron 用 UTC：01:00–09:50 UTC = 台灣 09:00–17:50
+    - cron: "*/10 1-9 * * 1-5"
+  workflow_dispatch:   # 面試前也可以到 Actions 頁面手動按一次，提早喚醒
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 戳健康檢查（剛好在睡就順便叫醒，最多等 3 分鐘）
+        env:
+          SITE_URL: https://voyago-backend-c8fd.onrender.com
+        run: |
+          for i in $(seq 1 9); do
+            body=$(curl -fsS --max-time 30 "$SITE_URL/actuator/health" || true)
+            echo "attempt $i: ${body:0:80}"
+            if echo "$body" | grep -q '"status":"UP"'; then exit 0; fi
+            sleep 20
+          done
+          echo "::warning::網站 3 分鐘內沒有回應 UP，請到 Render 查看服務狀態"

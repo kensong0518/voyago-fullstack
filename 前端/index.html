@@ -2,9 +2,25 @@
 <html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>歐洲自助遊 — 你的歐洲旅程從這裡開始</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0a9065" />
+    <title>Voyago 歐洲自助遊 — 你的歐洲旅程從這裡開始</title>
+    <!--
+      分享預覽（LINE／FB／104 貼連結時顯示）。網址必須是絕對路徑，%VITE_PUBLIC_URL% 由建置時的 .env.production 帶入。
+      行程頁（/tours/{slug}）的標題、介紹與封面圖由後端 TourPageController 換成該行程自己的內容，
+      因為這些爬蟲不會執行 JavaScript。修改下列標籤格式時，要一起改後端的替換規則與測試。
+    -->
+    <meta name="description" content="Voyago 歐洲自助遊：說出你想怎麼玩，AI 行程顧問從真實行程裡幫你挑。Vue 3 + Spring Boot + MySQL 全端作品，含會員前台與管理後台。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Voyago 歐洲自助遊" />
+    <meta property="og:title" content="Voyago 歐洲自助遊 — 你的歐洲旅程從這裡開始" />
+    <meta property="og:description" content="說出你想怎麼玩，AI 行程顧問從真實行程裡幫你挑。Vue 3 + Spring Boot + MySQL 全端作品，含會員前台與管理後台。" />
+    <meta property="og:image" content="%VITE_PUBLIC_URL%/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="%VITE_PUBLIC_URL%/" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <!-- Google Identity Services（Google 登入）-->
