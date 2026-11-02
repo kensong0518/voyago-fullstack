@@ -20,8 +20,12 @@ watch(() => auth.user?.email, (email) => fav.bindUser(email), { immediate: true 
     <NavBar />
     <main class="flex-1">
       <RouterView v-slot="{ Component, route: current }">
+        <!-- 外面包一層 div：Transition 只能處理「單一根元素」。很多頁面有多個根節點（好幾個 section），
+             直接放進 out-in 會讓離開動畫永遠等不到結束，切頁後畫面一片空白（例如首頁 → 探索行程）。 -->
         <Transition name="page" mode="out-in">
-          <component :is="Component" :key="current.path" />
+          <div :key="current.path">
+            <component :is="Component" />
+          </div>
         </Transition>
       </RouterView>
     </main>
