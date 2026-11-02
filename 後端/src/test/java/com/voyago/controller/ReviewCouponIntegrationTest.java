@@ -161,6 +161,11 @@ class ReviewCouponIntegrationTest {
            .andExpect(jsonPath("$.canReview").value(true))
            .andExpect(jsonPath("$.myRating").value(3));
 
+        // 首頁最新好評：只有 4 星以上（b 改成 3 星後不算），帶行程名稱
+        mvc.perform(get("/api/reviews/latest"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[?(@.routeSlug == '" + route.getSlug() + "')].authorName").value(org.hamcrest.Matchers.contains("王*明")));
+
         // 刪掉自己的評價
         mvc.perform(delete(reviewsUrl() + "/mine").header("Authorization", auth(a)))
            .andExpect(jsonPath("$.count").value(1))

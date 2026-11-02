@@ -6,6 +6,7 @@ const routes = [
   { path: "/", name: "home", component: () => import("../views/HomeView.vue") },
   { path: "/tours", name: "tours", component: () => import("../views/ToursView.vue"), meta: { title: "探索行程" } },
   { path: "/tours/:slug", name: "tour-detail", component: () => import("../views/TourDetailView.vue") },
+  { path: "/compare", name: "compare", component: () => import("../views/CompareView.vue"), meta: { title: "行程比較" } },
   { path: "/login", name: "login", component: () => import("../views/LoginView.vue"), meta: { title: "登入" } },
   { path: "/register", name: "register", component: () => import("../views/RegisterView.vue"), meta: { title: "免費註冊" } },
   { path: "/dashboard", name: "dashboard", component: () => import("../views/DashboardView.vue"), meta: { auth: true, title: "會員中心" } },

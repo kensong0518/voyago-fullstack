@@ -57,9 +57,17 @@ public class ReviewService {
         }
         List<ReviewDto> items = reviews.findLatestForRoute(route.getId(), PageRequest.of(0, LIST_LIMIT)).stream()
                 .map(r -> new ReviewDto(r.getId(), maskName(r.getMember().getName()), r.getRating(),
-                        r.getContent(), r.getUpdatedAt()))
+                        r.getContent(), r.getUpdatedAt(), null, null))
                 .toList();
         return new ReviewSummaryDto(route.getRating(), route.getReviews(), dist, items);
+    }
+
+    public List<ReviewDto> latest(int limit) {
+        int n = Math.max(1, Math.min(limit, 12));
+        return reviews.findLatestPositive(PageRequest.of(0, n)).stream()
+                .map(r -> new ReviewDto(r.getId(), maskName(r.getMember().getName()), r.getRating(),
+                        r.getContent(), r.getUpdatedAt(), r.getRoute().getSlug(), r.getRoute().getName()))
+                .toList();
     }
 
     public ReviewEligibilityDto eligibility(Long memberId, String slug) {

@@ -131,6 +131,40 @@ export const api = {
     );
   },
 
+  // 評價：只有付過款的會員能寫；平均分數由後端從評價表重算
+  getReviews(slug) {
+    return withFallbackAny(
+      async () => (await client.get(`/routes/${slug}/reviews`)).data,
+      () => ({ average: 0, count: 0, distribution: [0, 0, 0, 0, 0], items: [] })
+    );
+  },
+  getReviewEligibility(slug) {
+    return withFallbackAny(
+      async () => (await client.get(`/routes/${slug}/reviews/eligibility`)).data,
+      () => ({ canReview: false, reason: "示範模式不支援評價", myRating: null, myContent: null })
+    );
+  },
+  async saveMyReview(slug, { rating, content }) {
+    return (await client.put(`/routes/${slug}/reviews/mine`, { rating, content })).data;
+  },
+  async deleteMyReview(slug) {
+    return (await client.delete(`/routes/${slug}/reviews/mine`)).data;
+  },
+  getLatestReviews(limit = 3) {
+    return withFallbackAny(
+      async () => (await client.get("/reviews/latest", { params: { limit } })).data,
+      () => []
+    );
+  },
+
+  // 優惠碼：結帳頁套用到待付款訂單，折抵金額一律由後端計算
+  async applyCoupon(bookingId, code) {
+    return (await client.put(`/bookings/${bookingId}/coupon`, { code })).data;
+  },
+  async removeCoupon(bookingId) {
+    return (await client.delete(`/bookings/${bookingId}/coupon`)).data;
+  },
+
   // 驗證
   login(email, password) {
     return withFallback(

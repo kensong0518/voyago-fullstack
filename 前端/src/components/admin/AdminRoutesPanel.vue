@@ -15,7 +15,7 @@ const formErr = ref("");
 const okMsg = ref("");
 const EMPTY = {
   slug: "", name: "", summary: "", description: "", location: "", country: "",
-  days: 5, price: 30000, rating: 4.6, reviews: 0, imageUrl: "", tags: "", featured: false,
+  days: 5, price: 30000, imageUrl: "", tags: "", featured: false,
 };
 const form = ref({ ...EMPTY });
 
@@ -49,7 +49,7 @@ function openEdit(r) {
   form.value = {
     slug: r.slug, name: r.name, summary: r.summary, description: r.description,
     location: r.location, country: r.country, days: r.days, price: r.price,
-    rating: r.rating, reviews: r.reviews, imageUrl: r.imageUrl, tags: r.tags || "", featured: !!r.featured,
+    imageUrl: r.imageUrl, tags: r.tags || "", featured: !!r.featured,
   };
   formErr.value = ""; okMsg.value = "";
   formOpen.value = true;
@@ -67,8 +67,6 @@ async function save() {
     slug: form.value.slug.trim().toLowerCase(),
     days: Number(form.value.days),
     price: Number(form.value.price),
-    rating: form.value.rating === "" ? null : Number(form.value.rating),
-    reviews: form.value.reviews === "" ? null : Number(form.value.reviews),
   };
   try {
     if (editingId.value == null) {
@@ -137,10 +135,7 @@ onMounted(load);
       <div><label class="label">每人價格（新台幣）</label>
         <input v-model="form.price" type="number" required min="0" step="1" class="input" /></div>
 
-      <div><label class="label">評分（0–5）</label>
-        <input v-model="form.rating" type="number" min="0" max="5" step="0.1" class="input" /></div>
-      <div><label class="label">評論數</label>
-        <input v-model="form.reviews" type="number" min="0" class="input" /></div>
+      <p class="text-xs text-ink-400 sm:col-span-2">評分與評價數由會員的真實評價自動計算，不能手動修改。</p>
 
       <div class="sm:col-span-2"><label class="label">封面圖片網址</label>
         <input v-model="form.imageUrl" type="url" required maxlength="500" class="input" placeholder="https://images.unsplash.com/..." />

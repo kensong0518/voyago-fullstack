@@ -119,7 +119,9 @@ onMounted(load);
                 <p class="text-xs text-ink-400">{{ b.memberEmail }}</p>
               </td>
               <td class="whitespace-nowrap py-3 pr-3 text-ink-500">{{ dateText(b.travelDate) }} · {{ b.people }} 人</td>
-              <td class="whitespace-nowrap py-3 pr-3 text-right font-semibold">{{ twd(b.totalPrice) }}</td>
+              <td class="whitespace-nowrap py-3 pr-3 text-right font-semibold">{{ twd(b.totalPrice) }}
+                <p v-if="b.discountAmount > 0" class="text-xs font-normal text-ink-400">{{ b.couponCode }} −{{ twd(b.discountAmount) }}</p>
+              </td>
               <td class="py-3 pr-3">
                 <select :value="b.status" :disabled="savingId === b.id"
                   @change="(e) => changeStatus(b, e.target)"
