@@ -5,7 +5,7 @@ import RouteCard from "../components/RouteCard.vue";
 import AiAdvisorBox from "../components/AiAdvisorBox.vue";
 import AiAdvisorResults from "../components/AiAdvisorResults.vue";
 import { useAiAdvisor } from "../composables/useAiAdvisor";
-import { pickReviews, avatarColor } from "../data/content";
+import { avatarColor } from "../data/content";
 
 const all = ref([]);
 const loading = ref(true);
@@ -19,7 +19,8 @@ const destinations = computed(() => {
   return [...seen.values()].slice(0, 6);
 });
 
-const testimonials = pickReviews(1, 3);
+// 旅人怎麼說：全站最新的真實好評；還沒有任何評價時整區不顯示（不放假評價）
+const testimonials = ref([]);
 
 // AI 行程顧問：問完自動捲到結果區（手機上結果在 Hero 下方，看不到會以為沒反應）
 const advisor = useAiAdvisor();
@@ -27,12 +28,18 @@ watch(advisor.status, (s) => {
   if (s === "loading") nextTick(() => document.getElementById("ai-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
 });
 
-const stats = [
-  { value: "20+", label: "歐洲國家" },
-  { value: "10", label: "精選路線" },
-  { value: "8萬", label: "旅人同行" },
-  { value: "4.8★", label: "平均評價" },
-];
+// 數字全部從真實行程資料算出來，後台新增行程會自動更新
+const wan = (n) => (n >= 10000 ? `${(n / 10000).toFixed(1).replace(/\.0$/, "")} 萬` : n.toLocaleString("zh-TW"));
+const stats = computed(() => {
+  const list = all.value;
+  if (!list.length) return [];
+  return [
+    { value: String(new Set(list.map((r) => r.country)).size), label: "個歐洲國家" },
+    { value: String(list.length), label: "條自助路線" },
+    { value: `${Math.min(...list.map((r) => r.days))}–${Math.max(...list.map((r) => r.days))} 天`, label: "行程長度" },
+    { value: wan(Math.min(...list.map((r) => r.price))), label: "每人最低起" },
+  ];
+});
 const steps = [
   { icon: "🔍", title: "先挑路線", desc: "用主題、天數、預算篩，找到對你胃口的那條，而不是被推一堆。" },
   { icon: "🗓️", title: "線上下訂", desc: "選好出發日和人數，當下就看到有沒有位，不用等回覆。" },
@@ -53,6 +60,7 @@ function subscribe() {
 }
 
 onMounted(async () => {
+  api.getLatestReviews(3).then((list) => (testimonials.value = list)).catch(() => {});
   try { all.value = await api.getRoutes({ sort: "featured" }); }
   finally { loading.value = false; }
 });
@@ -78,7 +86,7 @@ onMounted(async () => {
           <RouterLink to="/register" class="btn px-7 py-3 text-base bg-white/10 text-white hover:bg-white/20">免費加入會員</RouterLink>
         </div>
       </div>
-      <dl class="mt-16 grid max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
+      <dl class="mt-16 grid min-h-[4.5rem] max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
         <div v-for="s in stats" :key="s.label"><dt class="text-3xl font-extrabold text-brand-400">{{ s.value }}</dt><dd class="mt-1 text-sm text-ink-300">{{ s.label }}</dd></div>
       </dl>
     </div>
@@ -163,17 +171,21 @@ onMounted(async () => {
     <div class="mt-10 text-center"><RouterLink to="/tours" class="btn-primary px-7 py-3">瀏覽所有行程</RouterLink></div>
   </section>
 
-  <!-- 旅人評價 -->
-  <section class="bg-ink-50 py-16 sm:py-20">
+  <!-- 旅人評價（真實評價，沒有就不顯示） -->
+  <section v-if="testimonials.length" class="bg-ink-50 py-16 sm:py-20">
     <div class="container-x">
       <h2 class="text-center text-2xl font-extrabold sm:text-3xl">旅人怎麼說</h2>
+      <p class="mt-2 text-center text-sm text-ink-500">來自完成付款的旅客</p>
       <div class="mt-10 grid gap-6 sm:grid-cols-3">
-        <div v-for="t in testimonials" :key="t.name" class="card p-6">
-          <div class="flex items-center gap-1 text-amber-500"><span v-for="s in 5" :key="s">{{ s <= t.rating ? '★' : '☆' }}</span></div>
-          <p class="mt-3 text-ink-600">「{{ t.text }}」</p>
+        <div v-for="t in testimonials" :key="t.id" class="card flex flex-col p-6">
+          <div class="flex items-center gap-1 text-amber-500" :aria-label="`${t.rating} 星`"><span v-for="s in 5" :key="s" aria-hidden="true">{{ s <= t.rating ? '★' : '☆' }}</span></div>
+          <p class="mt-3 line-clamp-5 flex-1 break-words text-ink-600">「{{ t.content }}」</p>
           <div class="mt-4 flex items-center gap-3">
-            <span class="grid h-9 w-9 place-items-center rounded-full text-sm font-bold text-white" :class="avatarColor(t.name)">{{ t.name.slice(0, 1) }}</span>
-            <span class="text-sm font-semibold">{{ t.name }}</span>
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold text-white" :class="avatarColor(t.authorName)">{{ t.authorName.slice(0, 1) }}</span>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold">{{ t.authorName }}</p>
+              <RouterLink :to="`/tours/${t.routeSlug}`" class="block truncate text-xs text-brand-700 hover:underline">{{ t.routeName }}</RouterLink>
+            </div>
           </div>
         </div>
       </div>

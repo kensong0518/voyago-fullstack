@@ -6,12 +6,16 @@ import api from "../api/api";
 import { useAuthStore } from "../stores/auth";
 import { useFavoritesStore } from "../stores/favorites";
 import RouteCard from "../components/RouteCard.vue";
-import { parseItinerary, COST_INCLUDED, COST_EXCLUDED, TRAVEL_NOTES, pickReviews, avatarColor, buildGallery } from "../data/content";
+import RatingBadge from "../components/RatingBadge.vue";
+import ReviewSection from "../components/ReviewSection.vue";
+import { useCompareStore } from "../stores/compare";
+import { parseItinerary, COST_INCLUDED, COST_EXCLUDED, TRAVEL_NOTES, buildGallery } from "../data/content";
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const fav = useFavoritesStore();
+const compare = useCompareStore();
 
 const data = ref(null);
 const allRoutes = ref([]);
@@ -31,7 +35,10 @@ const minDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 const itinerary = computed(() => data.value ? parseItinerary(data.value.description) : { overview: "", days: [] });
 const tags = computed(() => (data.value?.tags || "").split(",").map((t) => t.trim()).filter(Boolean));
 const gallery = computed(() => data.value ? buildGallery(data.value, allRoutes.value) : []);
-const reviews = computed(() => data.value ? pickReviews(data.value.id) : []);
+// 評價變動後同步更新頁首的平均分數（不用重新載入整頁）
+function onReviewsChanged(summary) {
+  if (data.value) { data.value.rating = summary.average; data.value.reviews = summary.count; }
+}
 const costIncluded = COST_INCLUDED, costExcluded = COST_EXCLUDED, notes = TRAVEL_NOTES;
 
 const twd = (n) => new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD", maximumFractionDigits: 0 }).format(n);
@@ -123,17 +130,19 @@ async function book() {
     <div class="container-x grid gap-10 py-10 lg:grid-cols-3">
       <div class="lg:col-span-2">
         <div class="flex items-center justify-between gap-4">
-          <div class="flex items-center gap-4 text-sm">
-            <span class="flex items-center gap-1 font-semibold text-amber-600">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 21l1.4-6.8L2.2 9.6l6.9-.7z"/></svg>
-              {{ data.rating.toFixed(1) }}
-            </span>
-            <span class="text-ink-400">{{ data.reviews }} 則旅人評價</span>
+          <a href="#reviews" class="text-sm hover:underline">
+            <RatingBadge :rating="data.rating" :reviews="data.reviews" size="md" />
+          </a>
+          <div class="flex gap-2">
+            <button @click="compare.toggle(data)" class="btn-outline text-sm" :aria-pressed="compare.has(data.slug)"
+              :class="compare.has(data.slug) ? '!border-ink-900 !bg-ink-900 !text-white' : ''">
+              {{ compare.has(data.slug) ? '✓ 比較中' : '＋ 比較' }}
+            </button>
+            <button @click="fav.toggle(data.id)" class="btn-outline text-sm"
+              :class="fav.has(data.id) ? '!border-rose-300 !text-rose-600' : ''">
+              {{ fav.has(data.id) ? '♥ 已收藏' : '♡ 收藏' }}
+            </button>
           </div>
-          <button @click="fav.toggle(data.id)" class="btn-outline text-sm"
-            :class="fav.has(data.id) ? '!border-rose-300 !text-rose-600' : ''">
-            {{ fav.has(data.id) ? '♥ 已收藏' : '♡ 收藏' }}
-          </button>
         </div>
 
         <p class="mt-5 text-lg text-ink-700">{{ data.summary }}</p>
@@ -173,29 +182,8 @@ async function book() {
           </li>
         </ul>
 
-        <!-- 旅人評價 -->
-        <div class="mt-10 flex items-center justify-between">
-          <h2 class="text-xl font-bold">旅人評價</h2>
-          <span class="flex items-center gap-1 text-sm font-semibold text-amber-600">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 21l1.4-6.8L2.2 9.6l6.9-.7z"/></svg>
-            {{ data.rating.toFixed(1) }} / 5.0
-          </span>
-        </div>
-        <div class="mt-4 grid gap-4 sm:grid-cols-2">
-          <div v-for="r in reviews" :key="`${r.name}-${r.date}`" class="card p-4">
-            <div class="flex items-center gap-3">
-              <span class="grid h-9 w-9 place-items-center rounded-full text-sm font-bold text-white" :class="avatarColor(r.name)">{{ r.name.slice(0, 1) }}</span>
-              <div>
-                <p class="text-sm font-bold">{{ r.name }}</p>
-                <div class="flex items-center gap-1 text-xs text-amber-500">
-                  <span v-for="s in 5" :key="s">{{ s <= r.rating ? '★' : '☆' }}</span>
-                  <span class="ml-1 text-ink-400">{{ r.date }}</span>
-                </div>
-              </div>
-            </div>
-            <p class="mt-3 text-sm text-ink-600">{{ r.text }}</p>
-          </div>
-        </div>
+        <!-- 旅人評價（真實評價，只有付過款的會員能寫） -->
+        <ReviewSection :slug="data.slug" @changed="onReviewsChanged" />
       </div>
 
       <!-- 預訂側欄 -->
@@ -220,6 +208,7 @@ async function book() {
             <span class="text-sm text-ink-500">總計</span>
             <span class="text-xl font-extrabold">{{ twd(data.price * people) }}</span>
           </div>
+          <p class="mt-2 text-right text-xs text-ink-400">有優惠碼？結帳時輸入</p>
           <p v-if="error" class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>
           <button :disabled="submitState !== 'idle'" class="btn-primary mt-4 w-full py-3 text-base">
             {{ submitState === "loading" ? "預訂中…" : submitState === "done" ? "✓ 訂單成立，前往結帳…" : auth.isLoggedIn ? "立即預訂" : "登入後預訂" }}

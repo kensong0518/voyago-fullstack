@@ -30,16 +30,18 @@ public class BookingServiceImpl implements BookingService {
     private final MemberRepository members;
     private final Clock clock;                       // 可注入固定時間，方便測試
     private final BookingEmailService emailService;
+    private final CouponService coupons;
 
     public BookingServiceImpl(BookingDao bookingDao, BookingRepository bookings,
                               RouteRepository routes, MemberRepository members, Clock clock,
-                              BookingEmailService emailService) {
+                              BookingEmailService emailService, CouponService coupons) {
         this.bookingDao = bookingDao;
         this.bookings = bookings;
         this.routes = routes;
         this.members = members;
         this.clock = clock;
         this.emailService = emailService;
+        this.coupons = coupons;
     }
 
     @Override
@@ -80,7 +82,16 @@ public class BookingServiceImpl implements BookingService {
         b.setRoute(route);
         b.setPeople(req.people());
         b.setTravelDate(travelDate);
-        b.setTotalPrice(route.getPrice() * req.people());
+        int subtotal = route.getPrice() * req.people();
+        int discount = 0;
+        if (req.couponCode() != null && !req.couponCode().isBlank()) {
+            // 檢查＋占用次數在同一個交易裡：之後任何一步失敗，占用的次數會一起回滾
+            CouponService.Applied applied = coupons.redeem(req.couponCode(), subtotal, memberId);
+            discount = applied.discount();
+            b.setCouponCode(applied.coupon().getCode());
+        }
+        b.setDiscountAmount(discount);
+        b.setTotalPrice(subtotal - discount);
         b.setStatus("PENDING");          // 待付款，結帳完成後轉 CONFIRMED
         bookings.save(b);
         return BookingDto.from(b);
@@ -102,7 +113,8 @@ public class BookingServiceImpl implements BookingService {
             // 再丟給 @Async 的 BookingEmailService——那邊是另一條執行緒，沒有 session。
             emailService.sendBookingConfirmation(new BookingConfirmationEmail(
                     b.getId(), b.getMember().getEmail(), b.getMember().getName(),
-                    b.getRoute().getName(), b.getTravelDate(), b.getPeople(), b.getTotalPrice()));
+                    b.getRoute().getName(), b.getTravelDate(), b.getPeople(), b.getTotalPrice(),
+                    b.getCouponCode(), b.getDiscountAmount()));
         }
         return BookingDto.from(b);
     }
@@ -120,6 +132,51 @@ public class BookingServiceImpl implements BookingService {
         if (!"CANCELLED".equals(b.getStatus())) {
             b.setStatus("CANCELLED");
             bookings.save(b);
+            coupons.release(b.getCouponCode());   // 優惠碼次數還回去，會員之後也能再用
         }
+    }
+
+    @Override
+    @Transactional
+    public BookingDto applyCoupon(Long memberId, Long bookingId, String code) {
+        Booking b = ownPending(memberId, bookingId);
+        int subtotal = b.getTotalPrice() + b.getDiscountAmount();   // 原價
+        if (b.getCouponCode() != null) {
+            if (b.getCouponCode().equals(CouponService.normalize(code))) return BookingDto.from(b);
+            coupons.release(b.getCouponCode());
+            b.setCouponCode(null);                                   // 先放掉舊的，「每人限用一次」才不會算到自己這筆
+            bookings.saveAndFlush(b);
+        }
+        CouponService.Applied applied = coupons.redeem(code, subtotal, memberId);
+        b.setCouponCode(applied.coupon().getCode());
+        b.setDiscountAmount(applied.discount());
+        b.setTotalPrice(subtotal - applied.discount());
+        return BookingDto.from(bookings.save(b));
+    }
+
+    @Override
+    @Transactional
+    public BookingDto removeCoupon(Long memberId, Long bookingId) {
+        Booking b = ownPending(memberId, bookingId);
+        if (b.getCouponCode() != null) {
+            coupons.release(b.getCouponCode());
+            b.setTotalPrice(b.getTotalPrice() + b.getDiscountAmount());
+            b.setCouponCode(null);
+            b.setDiscountAmount(0);
+            bookings.save(b);
+        }
+        return BookingDto.from(b);
+    }
+
+    private Booking ownPending(Long memberId, Long bookingId) {
+        Booking b = bookings.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到訂單"));
+        if (!b.getMember().getId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限修改此訂單");
+        }
+        if (!"PENDING".equals(b.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "只有待付款的訂單可以使用優惠碼");
+        }
+        return b;
     }
 }

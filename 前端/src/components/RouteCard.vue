@@ -1,9 +1,12 @@
 <script setup>
 import { computed } from "vue";
 import { useFavoritesStore } from "../stores/favorites";
+import { useCompareStore } from "../stores/compare";
+import RatingBadge from "./RatingBadge.vue";
 
 const props = defineProps({ route: { type: Object, required: true } });
 const fav = useFavoritesStore();
+const compare = useCompareStore();
 
 const tags = computed(() => (props.route.tags || "").split(",").map((t) => t.trim()).filter(Boolean).slice(0, 3));
 const priceText = computed(() => new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD", maximumFractionDigits: 0 }).format(props.route.price));
@@ -31,9 +34,7 @@ const priceText = computed(() => new Intl.NumberFormat("zh-TW", { style: "curren
     </div>
     <div class="p-4">
       <div class="flex items-center gap-1 text-xs text-ink-500">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-amber-500"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 21l1.4-6.8L2.2 9.6l6.9-.7z"/></svg>
-        <span class="font-semibold text-ink-700">{{ route.rating.toFixed(1) }}</span>
-        <span>({{ route.reviews }})</span>
+        <RatingBadge :rating="route.rating" :reviews="route.reviews" />
         <span class="mx-1">·</span>
         <span>{{ route.location }}</span>
       </div>
@@ -47,7 +48,15 @@ const priceText = computed(() => new Intl.NumberFormat("zh-TW", { style: "curren
           <span class="text-xs text-ink-400">每人</span>
           <p class="text-lg font-extrabold text-brand-700">{{ priceText }}</p>
         </div>
-        <span class="btn-outline px-4 py-2 text-xs">查看行程</span>
+        <div class="flex items-center gap-2">
+          <button type="button" @click.prevent.stop="compare.toggle(route)"
+            :aria-pressed="compare.has(route.slug)"
+            :class="['rounded-full px-3 py-2 text-xs font-semibold ring-1 transition',
+                     compare.has(route.slug) ? 'bg-ink-900 text-white ring-ink-900' : 'text-ink-600 ring-ink-200 hover:bg-ink-50']">
+            {{ compare.has(route.slug) ? "✓ 比較中" : "＋ 比較" }}
+          </button>
+          <span class="btn-outline px-4 py-2 text-xs">查看行程</span>
+        </div>
       </div>
     </div>
   </RouterLink>

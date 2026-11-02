@@ -31,6 +31,13 @@ public class Booking {
     @Column(name = "total_price", nullable = false)
     private Integer totalPrice;
 
+    /** 使用的優惠碼（沒用就是 null）；totalPrice 是折扣後實付金額，原價 = totalPrice + discountAmount。 */
+    @Column(name = "coupon_code", length = 30)
+    private String couponCode;
+
+    @Column(name = "discount_amount", nullable = false)
+    private Integer discountAmount = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -54,6 +61,10 @@ public class Booking {
     public void setStatus(String status) { this.status = status; }
     public Integer getTotalPrice() { return totalPrice; }
     public void setTotalPrice(Integer totalPrice) { this.totalPrice = totalPrice; }
+    public String getCouponCode() { return couponCode; }
+    public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
+    public Integer getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(Integer discountAmount) { this.discountAmount = discountAmount; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

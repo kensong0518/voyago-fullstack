@@ -7,6 +7,7 @@ import com.voyago.dto.RouteUpsertRequest;
 import com.voyago.entity.Booking;
 import com.voyago.entity.Route;
 import com.voyago.repository.BookingRepository;
+import com.voyago.repository.CouponRepository;
 import com.voyago.repository.RouteRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
@@ -25,10 +26,15 @@ public class AdminManageServiceImpl implements AdminManageService {
 
     private final RouteRepository routes;
     private final BookingRepository bookings;
+    private final CouponRepository coupons;
+    private final AuditService audit;
 
-    public AdminManageServiceImpl(RouteRepository routes, BookingRepository bookings) {
+    public AdminManageServiceImpl(RouteRepository routes, BookingRepository bookings, CouponRepository coupons,
+                                  AuditService audit) {
         this.routes = routes;
         this.bookings = bookings;
+        this.coupons = coupons;
+        this.audit = audit;
     }
 
     // ---------- 行程 ----------
@@ -49,7 +55,9 @@ public class AdminManageServiceImpl implements AdminManageService {
         }
         Route r = new Route();
         apply(r, req);
-        return RouteDto.from(routes.saveAndFlush(r));
+        routes.saveAndFlush(r);
+        audit.record("ROUTE_CREATE", "ROUTE", r.getId(), r.getName() + "（" + r.getSlug() + "，NT$" + r.getPrice() + "）");
+        return RouteDto.from(r);
     }
 
     @Override
@@ -65,8 +73,17 @@ public class AdminManageServiceImpl implements AdminManageService {
                 .ifPresent(other -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "網址代稱已被其他行程使用");
                 });
+        String before = summary(r);
         apply(r, req);
-        return RouteDto.from(routes.saveAndFlush(r));
+        routes.saveAndFlush(r);
+        String after = summary(r);
+        audit.record("ROUTE_UPDATE", "ROUTE", id, r.getName() + (before.equals(after) ? "（內容文字修改）" : "：" + before + " → " + after));
+        return RouteDto.from(r);
+    }
+
+    /** 稽核紀錄要看得出改了什麼：價格、天數、精選這些影響營運的欄位。 */
+    private static String summary(Route r) {
+        return "NT$" + r.getPrice() + "／" + r.getDays() + " 天" + (Boolean.TRUE.equals(r.getFeatured()) ? "／精選" : "");
     }
 
     @Override
@@ -75,15 +92,15 @@ public class AdminManageServiceImpl implements AdminManageService {
         @CacheEvict(cacheNames = "routeBySlug", allEntries = true)
     })
     public void deleteRoute(Long id) {
-        if (!routes.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到此行程");
-        }
+        Route existing = routes.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到此行程"));
         // 訂單是交易紀錄，不能因為行程下架就跟著消失
         if (bookings.existsByRouteId(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "這個行程已有訂單，不能刪除");
         }
         routes.deleteById(id);
         routes.flush();
+        audit.record("ROUTE_DELETE", "ROUTE", id, existing.getName() + "（" + existing.getSlug() + "）");
     }
 
     private void apply(Route r, RouteUpsertRequest req) {
@@ -95,8 +112,6 @@ public class AdminManageServiceImpl implements AdminManageService {
         r.setCountry(req.country().trim());
         r.setDays(req.days());
         r.setPrice(req.price());
-        if (req.rating() != null) r.setRating(req.rating());
-        if (req.reviews() != null) r.setReviews(req.reviews());
         r.setImageUrl(req.imageUrl().trim());
         r.setTags(normalizeTags(req.tags()));
         r.setFeatured(Boolean.TRUE.equals(req.featured()));
@@ -127,7 +142,24 @@ public class AdminManageServiceImpl implements AdminManageService {
     public AdminBookingDto updateBookingStatus(Long id, String status) {
         Booking b = bookings.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到此訂單"));
+        // 優惠碼次數跟著訂單狀態走：改成取消就還回去；從取消改回來要重新占用，用完了就不能恢復
+        String code = b.getCouponCode();
+        boolean wasCancelled = "CANCELLED".equals(b.getStatus());
+        boolean nowCancelled = "CANCELLED".equals(status);
+        if (code != null && !wasCancelled && nowCancelled) {
+            coupons.release(code);
+        } else if (code != null && wasCancelled && !nowCancelled) {
+            Long couponId = coupons.findByCode(code).map(c -> c.getId()).orElse(null);
+            if (couponId != null && coupons.tryRedeem(couponId) == 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "這筆訂單使用的優惠碼已用完或停用，無法恢復");
+            }
+        }
+        String from = b.getStatus();
         b.setStatus(status);
-        return AdminBookingDto.from(bookings.save(b));
+        bookings.save(b);
+        if (!status.equals(from)) {
+            audit.record("BOOKING_STATUS", "BOOKING", id, from + " → " + status + "（" + b.getMember().getEmail() + "，NT$" + b.getTotalPrice() + "）");
+        }
+        return AdminBookingDto.from(b);
     }
 }

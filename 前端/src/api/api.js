@@ -131,6 +131,40 @@ export const api = {
     );
   },
 
+  // 評價：只有付過款的會員能寫；平均分數由後端從評價表重算
+  getReviews(slug) {
+    return withFallbackAny(
+      async () => (await client.get(`/routes/${slug}/reviews`)).data,
+      () => ({ average: 0, count: 0, distribution: [0, 0, 0, 0, 0], items: [] })
+    );
+  },
+  getReviewEligibility(slug) {
+    return withFallbackAny(
+      async () => (await client.get(`/routes/${slug}/reviews/eligibility`)).data,
+      () => ({ canReview: false, reason: "示範模式不支援評價", myRating: null, myContent: null })
+    );
+  },
+  async saveMyReview(slug, { rating, content }) {
+    return (await client.put(`/routes/${slug}/reviews/mine`, { rating, content })).data;
+  },
+  async deleteMyReview(slug) {
+    return (await client.delete(`/routes/${slug}/reviews/mine`)).data;
+  },
+  getLatestReviews(limit = 3) {
+    return withFallbackAny(
+      async () => (await client.get("/reviews/latest", { params: { limit } })).data,
+      () => []
+    );
+  },
+
+  // 優惠碼：結帳頁套用到待付款訂單，折抵金額一律由後端計算
+  async applyCoupon(bookingId, code) {
+    return (await client.put(`/bookings/${bookingId}/coupon`, { code })).data;
+  },
+  async removeCoupon(bookingId) {
+    return (await client.delete(`/bookings/${bookingId}/coupon`)).data;
+  },
+
   // 驗證
   login(email, password) {
     return withFallback(
@@ -430,6 +464,39 @@ export const api = {
   },
   adminUpdateBookingStatus(id, status) {
     return adminOnly(async () => (await client.put(`/admin/bookings/${id}/status`, { status })).data);
+  },
+
+  // ---- 後台 D：報表、CSV、操作紀錄、優惠碼 ----
+  adminReport(days = 30) {
+    return adminOnly(async () => (await client.get("/admin/reports", { params: { days } })).data);
+  },
+  // CSV 要帶登入 token，不能用一般連結下載：用 axios 取回 Blob，再交給瀏覽器存檔
+  adminExportCsv(kind, params = {}) {
+    return adminOnly(async () => {
+      const res = await client.get(`/admin/export/${kind}.csv`, { params, responseType: "blob" });
+      const disposition = res.headers["content-disposition"] || "";
+      const name = /filename="?([^";]+)"?/.exec(disposition)?.[1] || `voyago-${kind}.csv`;
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return { name, rows: Number(res.headers["x-row-count"] || 0) };
+    });
+  },
+  adminAuditLog({ page = 0, size = 20 } = {}) {
+    return adminOnly(async () => (await client.get("/admin/audit", { params: { page, size } })).data);
+  },
+  adminListCoupons() {
+    return adminOnly(async () => (await client.get("/admin/coupons")).data);
+  },
+  adminCreateCoupon(payload) {
+    return adminOnly(async () => (await client.post("/admin/coupons", payload)).data);
+  },
+  adminUpdateCoupon(id, payload) {
+    return adminOnly(async () => (await client.put(`/admin/coupons/${id}`, payload)).data);
+  },
+  adminDeleteCoupon(id) {
+    return adminOnly(async () => (await client.delete(`/admin/coupons/${id}`)).data);
   },
 
   // ========== AI 行程顧問：一律打真實後端（示範模式沒有 AI，不用假資料冒充） ==========

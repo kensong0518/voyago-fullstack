@@ -5,15 +5,21 @@ import AdminStatsCards from "../components/admin/AdminStatsCards.vue";
 import AdminRoutesPanel from "../components/admin/AdminRoutesPanel.vue";
 import AdminBookingsPanel from "../components/admin/AdminBookingsPanel.vue";
 import AdminMembersPanel from "../components/admin/AdminMembersPanel.vue";
+import AdminInsightsPanel from "../components/admin/AdminInsightsPanel.vue";
+import AdminCouponsPanel from "../components/admin/AdminCouponsPanel.vue";
+import AdminAuditPanel from "../components/admin/AdminAuditPanel.vue";
 
 const auth = useAuthStore();
 
 const TABS = [
+  { v: "insights", l: "📈 營收報表" },
   { v: "routes", l: "🗺️ 行程管理" },
   { v: "bookings", l: "🧾 訂單管理" },
   { v: "members", l: "👥 會員管理" },
+  { v: "coupons", l: "🏷️ 優惠碼" },
+  { v: "audit", l: "📝 操作紀錄" },
 ];
-const tab = ref("routes");
+const tab = ref("insights");
 const stats = ref(null);
 </script>
 
@@ -42,9 +48,12 @@ const stats = ref(null);
     <div class="mt-6">
       <!-- KeepAlive：切換分頁不會丟掉已載入的列表與表單內容 -->
       <KeepAlive>
-        <AdminRoutesPanel v-if="tab === 'routes'" />
+        <AdminInsightsPanel v-if="tab === 'insights'" />
+        <AdminRoutesPanel v-else-if="tab === 'routes'" />
         <AdminBookingsPanel v-else-if="tab === 'bookings'" @changed="stats?.reload()" />
-        <AdminMembersPanel v-else />
+        <AdminMembersPanel v-else-if="tab === 'members'" />
+        <AdminCouponsPanel v-else-if="tab === 'coupons'" />
+        <AdminAuditPanel v-else-if="tab === 'audit'" />
       </KeepAlive>
     </div>
   </div>

@@ -1,7 +1,5 @@
 package com.voyago.dto;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -9,7 +7,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** 後台新增 / 編輯行程的請求內容；欄位上限與資料表定義一致。 */
+/**
+ * 後台新增 / 編輯行程的請求內容；欄位上限與資料表定義一致。
+ * 不含評分與評價數：那兩個欄位由會員的真實評價自動計算（ReviewService），後台不能手動改。
+ */
 public record RouteUpsertRequest(
     @NotBlank(message = "請填寫網址代稱")
     @Size(max = 80, message = "網址代稱最多 80 字")
@@ -36,12 +37,6 @@ public record RouteUpsertRequest(
 
     @NotNull(message = "請填寫價格") @Min(value = 0, message = "價格不能是負數")
     Integer price,
-
-    @DecimalMin(value = "0.0", message = "評分介於 0 到 5") @DecimalMax(value = "5.0", message = "評分介於 0 到 5")
-    Double rating,
-
-    @Min(value = 0, message = "評論數不能是負數")
-    Integer reviews,
 
     @NotBlank(message = "請填寫圖片網址") @Size(max = 500, message = "圖片網址最多 500 字")
     @Pattern(regexp = "^https?://.+", message = "圖片網址須以 http:// 或 https:// 開頭")

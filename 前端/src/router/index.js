@@ -6,6 +6,7 @@ const routes = [
   { path: "/", name: "home", component: () => import("../views/HomeView.vue") },
   { path: "/tours", name: "tours", component: () => import("../views/ToursView.vue"), meta: { title: "探索行程" } },
   { path: "/tours/:slug", name: "tour-detail", component: () => import("../views/TourDetailView.vue") },
+  { path: "/compare", name: "compare", component: () => import("../views/CompareView.vue"), meta: { title: "行程比較" } },
   { path: "/login", name: "login", component: () => import("../views/LoginView.vue"), meta: { title: "登入" } },
   { path: "/register", name: "register", component: () => import("../views/RegisterView.vue"), meta: { title: "免費註冊" } },
   { path: "/dashboard", name: "dashboard", component: () => import("../views/DashboardView.vue"), meta: { auth: true, title: "會員中心" } },
@@ -18,7 +19,19 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() { return { top: 0 }; },
+  // 換頁回到頂端；網址帶 #錨點（例如會員中心「寫評價」→ /tours/xxx#reviews）時，
+  // 等該區塊渲染出來（頁面資料是非同步載入的）再捲過去，最多等 4 秒
+  scrollBehavior(to) {
+    if (!to.hash) return { top: 0 };
+    return new Promise((resolve) => {
+      const start = Date.now();
+      (function waitForTarget() {
+        if (document.querySelector(to.hash)) resolve({ el: to.hash, top: 72, behavior: "smooth" });
+        else if (Date.now() - start > 4000) resolve({ top: 0 });
+        else setTimeout(waitForTarget, 100);
+      })();
+    });
+  },
 });
 
 // 路由守衛：受保護頁面需登入

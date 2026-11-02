@@ -44,7 +44,14 @@
 
 之後的更新：推送到 GitHub `main` 即可，Render 會自動重新建置部署。前端的正式設定在 `前端/.env.production`（只放公開值），改了一樣推上去就生效。
 
-## 步驟 3：Google 登入
+## 步驟 3：AI 行程顧問與確認信（選用）
+
+- **AI 行程顧問**：到 <https://aistudio.google.com/apikey> 免費申請金鑰，貼到 Render 的 `GEMINI_API_KEY`。沒設定時首頁顯示「尚未啟用」，其他功能不受影響。預設模型 `gemini-3.5-flash-lite`（低延遲），可用 `GEMINI_MODEL` 換。
+- **訂單確認信**：Render 免費方案封鎖 SMTP，改用 Google Apps Script 寄信，照 [`scripts/mail-relay/README.md`](scripts/mail-relay/README.md) 設定（約 5 分鐘），把網址貼到 `MAIL_RELAY_URL`。`MAIL_RELAY_SECRET` 由 Render 自動產生，複製到 Apps Script 的指令碼屬性。
+
+資料庫結構有更新時不用手動跑 SQL：後端啟動時會自動執行 `db/migration/` 裡還沒套用過的版本。
+
+## 步驟 4：Google 登入
 
 到 Google Cloud Console 的 OAuth 用戶端，「已授權的 JavaScript 來源」要包含網站網址（例如 `https://voyago-backend-c8fd.onrender.com`）。前後端的 Client ID 必須是同一個。
 

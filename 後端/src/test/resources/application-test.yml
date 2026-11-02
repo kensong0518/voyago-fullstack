@@ -17,6 +17,8 @@ spring:
     host: ""     # 測試環境不寄信，BookingEmailService 會安全跳過
 
 app:
+  db:
+    migrate: false   # H2 由 Hibernate create-drop 建表
   jwt:
     secret: test-only-secret-key-at-least-32-bytes-long-for-hs256
     expiration-ms: 3600000

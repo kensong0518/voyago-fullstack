@@ -2,6 +2,7 @@ package com.voyago.controller;
 
 import com.voyago.dto.BookingDto;
 import com.voyago.dto.BookingRequest;
+import com.voyago.dto.CouponApplyRequest;
 import com.voyago.dto.PageResult;
 import com.voyago.security.CurrentUser;
 import com.voyago.service.BookingService;
@@ -44,6 +45,17 @@ public class BookingController {
     @PostMapping("/{id}/pay")
     public BookingDto pay(@PathVariable Long id) {
         return bookings.pay(CurrentUser.id(), id);
+    }
+
+    /** 結帳頁套用優惠碼：折抵金額由後端計算並寫入訂單。 */
+    @PutMapping("/{id}/coupon")
+    public BookingDto applyCoupon(@PathVariable Long id, @Valid @RequestBody CouponApplyRequest req) {
+        return bookings.applyCoupon(CurrentUser.id(), id, req.code());
+    }
+
+    @DeleteMapping("/{id}/coupon")
+    public BookingDto removeCoupon(@PathVariable Long id) {
+        return bookings.removeCoupon(CurrentUser.id(), id);
     }
 
     @DeleteMapping("/{id}")

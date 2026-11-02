@@ -10,12 +10,14 @@ public record AdminBookingDto(
     Long id, Integer people, LocalDate travelDate, String status, Integer totalPrice,
     LocalDateTime createdAt,
     Long memberId, String memberName, String memberEmail,
-    Long routeId, String routeName, String routeSlug
+    Long routeId, String routeName, String routeSlug,
+    String couponCode, Integer discountAmount
 ) {
     public static AdminBookingDto from(Booking b) {
         return new AdminBookingDto(b.getId(), b.getPeople(), b.getTravelDate(), b.getStatus(),
             b.getTotalPrice(), b.getCreatedAt(),
             b.getMember().getId(), b.getMember().getName(), b.getMember().getEmail(),
-            b.getRoute().getId(), b.getRoute().getName(), b.getRoute().getSlug());
+            b.getRoute().getId(), b.getRoute().getName(), b.getRoute().getSlug(),
+            b.getCouponCode(), b.getDiscountAmount());
     }
 }

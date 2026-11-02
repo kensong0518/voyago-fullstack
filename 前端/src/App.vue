@@ -5,6 +5,7 @@ import { useFavoritesStore } from "./stores/favorites";
 import DemoBanner from "./components/DemoBanner.vue";
 import NavBar from "./components/NavBar.vue";
 import AppFooter from "./components/AppFooter.vue";
+import CompareBar from "./components/CompareBar.vue";
 
 const auth = useAuthStore();
 const fav = useFavoritesStore();
@@ -30,6 +31,7 @@ watch(() => auth.user?.email, (email) => fav.bindUser(email), { immediate: true 
       </RouterView>
     </main>
     <AppFooter />
+    <CompareBar />
     <DemoBanner position="bottom" />
   </div>
 </template>

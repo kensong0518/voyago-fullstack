@@ -136,8 +136,13 @@ async function deleteMyAccount() {
                   <p class="mt-1 text-sm text-ink-500">{{ b.route.country }} · {{ b.route.days }} 天 · {{ b.people }} 人 · 出發 {{ dateText(b.travelDate) }}</p>
                 </div>
                 <div class="flex items-end justify-between">
-                  <span class="font-extrabold text-brand-700">{{ twd(b.totalPrice) }}</span>
+                  <span>
+                    <span class="font-extrabold text-brand-700">{{ twd(b.totalPrice) }}</span>
+                    <span v-if="b.discountAmount > 0" class="ml-1.5 text-xs text-ink-400">已折 {{ twd(b.discountAmount) }}（{{ b.couponCode }}）</span>
+                  </span>
                   <div class="flex items-center gap-3">
+                    <RouterLink v-if="b.status === 'CONFIRMED'" :to="`/tours/${b.route.slug}#reviews`"
+                      class="text-xs font-semibold text-brand-700 hover:underline">寫評價</RouterLink>
                     <RouterLink v-if="b.status === 'PENDING'" :to="`/checkout/${b.id}`"
                       class="rounded-full bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700">前往結帳</RouterLink>
                     <button @click="cancel(b)" class="text-xs font-semibold text-rose-500 hover:underline">取消訂單</button>
