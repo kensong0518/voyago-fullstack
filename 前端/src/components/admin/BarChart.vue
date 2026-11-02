@@ -51,7 +51,8 @@ const tipStyle = computed(() => {
 </script>
 
 <template>
-  <div class="relative" @mouseleave="hover = -1">
+  <!-- 滑鼠移出才收起提示；手指點一下時瀏覽器會補發 mouseleave，若也收起，手機上提示會一閃即逝 -->
+  <div class="relative" @pointerleave="(e) => e.pointerType === 'mouse' && (hover = -1)">
     <svg :viewBox="`0 0 ${W} ${H}`" class="h-auto w-full" role="img" :aria-label="ariaLabel">
       <!-- 格線與 Y 軸刻度：淡色、不搶資料 -->
       <g v-for="t in ticks" :key="t">
@@ -64,7 +65,7 @@ const tipStyle = computed(() => {
         text-anchor="middle" font-size="11" fill="#8290a8">{{ points[i]?.label }}</text>
       <!-- 感應區比長條大：整欄都能 hover，0 的那天也看得到數字 -->
       <rect v-for="(p, i) in points" :key="'h' + p.key" :x="PAD_L + i * slot" :y="PAD_T" :width="slot" :height="plotH"
-        fill="transparent" @mouseenter="hover = i" @touchstart.passive="hover = i" />
+        fill="transparent" @pointerenter="hover = i" @pointerdown="hover = i" />
     </svg>
     <div v-if="hover >= 0" :style="tipStyle"
       class="pointer-events-none absolute top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink-900 px-2.5 py-1.5 text-xs text-white shadow-lg">
