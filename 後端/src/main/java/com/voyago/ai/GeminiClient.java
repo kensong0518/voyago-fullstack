@@ -1,5 +1,6 @@
 package com.voyago.ai;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -94,10 +95,12 @@ public class GeminiClient implements LlmClient {
             throw new AiException(AiException.Reason.TIMEOUT, "連線失敗或逾時：" + e.getMessage(), e);
         } catch (RestClientException e) {
             // 讀回應內容時逾時，Spring 會包成一般的 RestClientException（不是 ResourceAccessException），
-            // 要往下找原因：是 I/O（逾時、斷線）就當作逾時，否則是回應格式有問題
+            // 要往下找原因：JSON 解析失敗是回應格式有問題；其他 I/O（逾時、斷線）才當作逾時。
+            // 注意 Jackson 的解析錯誤本身也是 IOException 的子類別，所以要先判斷它。
             boolean io = false;
             for (Throwable c = e; c != null; c = c.getCause()) {
-                if (c instanceof IOException) { io = true; break; }
+                if (c instanceof JsonProcessingException) { io = false; break; }
+                if (c instanceof IOException) io = true;
             }
             throw new AiException(io ? AiException.Reason.TIMEOUT : AiException.Reason.BAD_RESPONSE,
                     "讀取回應失敗：" + e.getMessage(), e);
