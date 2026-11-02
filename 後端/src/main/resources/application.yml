@@ -45,6 +45,9 @@ app:
     client-id: ${GOOGLE_CLIENT_ID:}
   # 後台管理員：逗號分隔的 Email，用 Google 登入時自動成為 STAFF
   admin-emails: ${ADMIN_EMAILS:}
+  db:
+    # 啟動時自動執行 db/migration/V*.sql（見 SchemaMigrator）；已執行過的版本不會重跑
+    migrate: ${DB_MIGRATE:true}
   # 是否種入密碼公開的示範客服帳號 staff@voyago.com（本機示範用；公開站台請設 false）
   seed-demo-staff: ${SEED_DEMO_STAFF:true}
   security:

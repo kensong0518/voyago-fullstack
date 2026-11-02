@@ -1,24 +1,18 @@
 -- ============================================================
--- 升級：真實評價、優惠碼（已上線的資料庫執行一次；新資料庫直接跑 01_schema.sql 即可）
--- 可重複執行：每一步都先判斷是否已做過。
+-- 升級：真實評價、優惠碼
+-- 後端啟動時會自動執行（後端/src/main/resources/db/migration/V3__reviews_coupons.sql，見 SchemaMigrator），
+-- 一般不需要手動跑。要手動執行時，內容與該檔相同；新資料庫直接跑 01_schema.sql 即可。
 -- ============================================================
 USE voyago;
-
--- 1. 評分從 0 開始：清掉原本的示範評分，之後由會員評價自動計算
+-- 評分從 0 開始：清掉原本的示範評分，之後由會員評價自動計算（這個版本只會執行一次）
 ALTER TABLE route ALTER COLUMN rating SET DEFAULT 0;
-UPDATE route r SET rating = 0, reviews = 0
-WHERE NOT EXISTS (SELECT 1 FROM information_schema.tables
-                  WHERE table_schema = DATABASE() AND table_name = 'review');
+UPDATE route SET rating = 0, reviews = 0;
 
--- 2. 訂單加上優惠碼欄位
-SET @has_coupon_col = (SELECT COUNT(*) FROM information_schema.columns
-                       WHERE table_schema = DATABASE() AND table_name = 'booking' AND column_name = 'coupon_code');
-SET @sql = IF(@has_coupon_col = 0,
-  'ALTER TABLE booking ADD COLUMN coupon_code VARCHAR(30) NULL AFTER total_price, ADD COLUMN discount_amount INT NOT NULL DEFAULT 0 AFTER coupon_code, ADD KEY idx_booking_member_coupon (member_id, coupon_code)',
-  'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- 訂單加上優惠碼欄位
+ALTER TABLE booking ADD COLUMN coupon_code VARCHAR(30) NULL;
+ALTER TABLE booking ADD COLUMN discount_amount INT NOT NULL DEFAULT 0;
+ALTER TABLE booking ADD KEY idx_booking_member_coupon (member_id, coupon_code);
 
--- 3. 評價
 CREATE TABLE IF NOT EXISTS review (
   id          BIGINT       NOT NULL AUTO_INCREMENT,
   member_id   BIGINT       NOT NULL,
@@ -34,7 +28,6 @@ CREATE TABLE IF NOT EXISTS review (
   CONSTRAINT fk_review_route  FOREIGN KEY (route_id)  REFERENCES route(id)  ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. 優惠碼
 CREATE TABLE IF NOT EXISTS coupon (
   id              BIGINT       NOT NULL AUTO_INCREMENT,
   code            VARCHAR(30)  NOT NULL,
