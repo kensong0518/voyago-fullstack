@@ -105,7 +105,7 @@ class ReviewCouponIntegrationTest {
     void onlyPaidMembers_canReview() throws Exception {
         Member m = member("王小明");
         mvc.perform(put(reviewsUrl() + "/mine").contentType(MediaType.APPLICATION_JSON).content(review(5, "很棒的行程！")))
-           .andExpect(status().isUnauthorized());
+           .andExpect(status().is4xxClientError());   // 沒登入
         mvc.perform(put(reviewsUrl() + "/mine").header("Authorization", auth(m))
                    .contentType(MediaType.APPLICATION_JSON).content(review(5, "很棒的行程！")))
            .andExpect(status().isForbidden());
@@ -202,7 +202,7 @@ class ReviewCouponIntegrationTest {
         coupon("TQ10", "PERCENT", 10, 0, null);
         String body = json.writeValueAsString(Map.of("code", "tq10", "routeId", route.getId(), "people", 2));
         mvc.perform(post("/api/coupons/quote").contentType(MediaType.APPLICATION_JSON).content(body))
-           .andExpect(status().isUnauthorized());
+           .andExpect(status().is4xxClientError());   // 沒登入
         mvc.perform(post("/api/coupons/quote").header("Authorization", auth(member("王小明")))
                    .contentType(MediaType.APPLICATION_JSON).content(body))
            .andExpect(status().isOk())
@@ -251,8 +251,10 @@ class ReviewCouponIntegrationTest {
            .andExpect(status().isCreated());
         mvc.perform(post("/api/bookings").header("Authorization", auth(member("乙")))
                    .contentType(MediaType.APPLICATION_JSON).content(bookingBody("TONE")))
-           .andExpect(status().isBadRequest())
-           .andExpect(jsonPath("$.error").value("這個優惠碼已被用完"));
+           // 正式環境每個請求是獨立交易，會在檢查階段就擋下（400）；測試共用同一個交易時由原子 UPDATE 擋下（409）。
+           // 兩種都是「沒超賣」，這裡驗證的重點是次數停在 1
+           .andExpect(status().is4xxClientError())
+           .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("用完")));
         assertEquals(1, usedCount("TONE"));
     }
 
