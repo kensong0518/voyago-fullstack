@@ -63,8 +63,8 @@ app:
     gemini:
       # 到 https://aistudio.google.com/apikey 免費申請；沒設定時 AI 顧問顯示「尚未啟用」，其他功能不受影響
       api-key: ${GEMINI_API_KEY:}
-      # Google 維護的「最新 Flash」別名，模型改版不用改程式；要固定版本可設 GEMINI_MODEL
-      model: ${GEMINI_MODEL:gemini-flash-latest}
+      # Flash-Lite：Google 定位為低延遲的版本，挑行程這種有明確資料的任務夠用；完整版 Flash 實測在正式站超過 40 秒才回應。要換可設 GEMINI_MODEL
+      model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
       # 思考程度：新版 Flash 預設會思考很久（實測超過 25 秒），挑行程用 low 就夠；留空＝用模型預設
       thinking-level: ${GEMINI_THINKING_LEVEL:low}
       timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:40}
