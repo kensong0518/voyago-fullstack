@@ -166,8 +166,8 @@ async function pay() {
         </div>
       </div>
 
-      <!-- 訂單摘要 -->
-      <div class="lg:col-span-2">
+      <!-- 訂單摘要（手機放在付款方式上面：先看到金額、輸入優惠碼，再付款） -->
+      <div class="order-first lg:order-none lg:col-span-2">
         <div class="card overflow-hidden">
           <img :src="booking.route.imageUrl" alt="" @error="(e)=>(e.target.style.display='none')" class="h-36 w-full object-cover bg-gradient-to-br from-brand-300 to-brand-600" />
           <div class="p-5 text-sm">

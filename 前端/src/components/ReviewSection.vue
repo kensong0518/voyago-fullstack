@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import api from "../api/api";
 import { useAuthStore } from "../stores/auth";
@@ -32,14 +32,7 @@ async function load() {
   } catch { /* 評價載入失敗不影響行程頁其他內容 */ }
   finally { loading.value = false; }
 }
-onMounted(async () => {
-  await load();
-  // 從「會員中心 → 寫評價」或登入後回來（網址帶 #reviews）時，直接捲到評價區
-  if (route.hash === "#reviews") {
-    await nextTick();
-    document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-});
+onMounted(load);   // 網址帶 #reviews 時由 router 的 scrollBehavior 捲過來
 watch(() => [props.slug, auth.isLoggedIn], load);
 
 function startEdit() {
