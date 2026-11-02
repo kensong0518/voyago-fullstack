@@ -62,6 +62,9 @@ app:
       api-key: ${GEMINI_API_KEY:}
       # Google 維護的「最新 Flash」別名，模型改版不用改程式；要固定版本可設 GEMINI_MODEL
       model: ${GEMINI_MODEL:gemini-flash-latest}
+      # 思考程度：新版 Flash 預設會思考很久（實測超過 25 秒），挑行程用 low 就夠；留空＝用模型預設
+      thinking-level: ${GEMINI_THINKING_LEVEL:low}
+      timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:40}
     daily-limit-per-client: ${AI_DAILY_LIMIT:10}
     daily-limit-global: ${AI_DAILY_GLOBAL_LIMIT:300}
   mail:

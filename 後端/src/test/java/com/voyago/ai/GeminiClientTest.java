@@ -28,6 +28,8 @@ class GeminiClientTest {
     private volatile int status = 200;
     private volatile String responseBody = "{}";
     private volatile long delayMs = 0;
+    private volatile boolean rejectThinking = false;   // 模擬不支援 thinkingConfig 的模型
+    private final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
     private final ObjectMapper json = new ObjectMapper();
 
     @BeforeEach
@@ -37,10 +39,14 @@ class GeminiClientTest {
             lastPath.set(ex.getRequestURI().toString());
             lastKeyHeader.set(ex.getRequestHeaders().getFirst("x-goog-api-key"));
             lastBody.set(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            calls.incrementAndGet();
             try { Thread.sleep(delayMs); } catch (InterruptedException ignored) { }
-            byte[] out = responseBody.getBytes(StandardCharsets.UTF_8);
+            boolean reject = rejectThinking && lastBody.get().contains("thinkingConfig");
+            byte[] out = (reject
+                    ? "{\"error\":{\"code\":400,\"message\":\"Thinking level is not supported for this model.\"}}"
+                    : responseBody).getBytes(StandardCharsets.UTF_8);
             ex.getResponseHeaders().add("Content-Type", "application/json");
-            ex.sendResponseHeaders(status, out.length);
+            ex.sendResponseHeaders(reject ? 400 : status, out.length);
             try (OutputStream os = ex.getResponseBody()) { os.write(out); }
         });
         server.start();
@@ -53,7 +59,31 @@ class GeminiClientTest {
 
     private GeminiClient client(String key, int timeoutSeconds) {
         return new GeminiClient(RestClient.builder(), json, key, "gemini-test-model",
-                "http://127.0.0.1:" + server.getAddress().getPort(), timeoutSeconds);
+                "http://127.0.0.1:" + server.getAddress().getPort(), timeoutSeconds, "low");
+    }
+
+    private static final String OK = """
+            {"candidates":[{"content":{"parts":[{"text":"{\\"message\\":\\"ok\\"}"}]},"finishReason":"STOP"}]}
+            """;
+
+    @Test
+    void asksForLowThinking_soAnswersComeBackQuickly() throws Exception {
+        responseBody = OK;
+        client("k", 5).generateJson("s", "u", Map.of());
+        assertEquals("low", json.readTree(lastBody.get()).at("/generationConfig/thinkingConfig/thinkingLevel").asText());
+    }
+
+    @Test
+    void modelWithoutThinkingSupport_retriesWithoutIt_andRemembers() throws Exception {
+        rejectThinking = true;
+        responseBody = OK;
+        GeminiClient c = client("k", 5);
+        assertEquals("{\"message\":\"ok\"}", c.generateJson("s", "u", Map.of()));
+        assertEquals(2, calls.get(), "第一次被拒，第二次不帶 thinkingConfig 成功");
+        assertTrue(json.readTree(lastBody.get()).at("/generationConfig/thinkingConfig").isMissingNode());
+
+        c.generateJson("s", "u", Map.of());
+        assertEquals(3, calls.get(), "之後直接不帶，不再多打一次");
     }
 
     @Test
