@@ -105,9 +105,10 @@ jobs:
         run: |
           docker run --rm --entrypoint sh voyago-backend:ci -c '
             set -e
-            test -f /app/classes/static/index.html && echo "index.html: OK"
-            echo "js bundles: $(ls /app/classes/static/assets/*.js | wc -l)"
-            grep -rlq 484615494439 /app/classes/static/assets && echo "Google client id baked into bundle: OK"
+            mkdir -p /tmp/x && cd /tmp/x && unzip -q /app/app.jar
+            test -f static/index.html && echo "index.html: OK"
+            echo "js bundles: $(ls static/assets/*.js | wc -l)"
+            grep -rlq 484615494439 static/assets && echo "Google client id baked into bundle: OK"
             ls -la /app/app.jsa
           '
 
@@ -123,7 +124,7 @@ jobs:
                 -Dspring.jpa.hibernate.ddl-auto=none \
                 -Dspring.jpa.properties.hibernate.temp.use_jdbc_metadata_defaults=false \
                 -Dspring.jpa.database-platform=org.hibernate.dialect.MySQLDialect \
-                -cp '/app/classes:/app/lib/*' com.voyago.VoyagoApplication > /tmp/out.log 2>&1
+                -cp '/app/app.jar:/app/lib/*' com.voyago.VoyagoApplication > /tmp/out.log 2>&1
               e=\$(date +%s%N)
               grep -q 'Root WebApplicationContext: initialization completed' /tmp/out.log || { tail -40 /tmp/out.log; exit 1; }
               echo \$(( (e - s) / 1000000 ))"

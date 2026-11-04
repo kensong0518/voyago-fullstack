@@ -30,10 +30,11 @@ COPY 後端/src ./src
 COPY --from=web /web/dist ./src/main/resources/static
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q -ntp clean package -DskipTests \
     && cp target/voyago-backend.jar /app/app.jar
-# 把 fat jar 拆開成「一般 classpath」（classes + lib/*.jar）：
-# JVM 的類別資料共享（CDS）只對一般 jar 有效，對 Spring Boot 巢狀 jar 裡的類別無效
+# 把 fat jar 拆成「一般 classpath」：自己的程式（含前端網頁）重新包成 app.jar，依賴放 lib/*.jar。
+# JVM 的類別資料共享（CDS）只認一般 jar：Spring Boot 巢狀 jar 裡的類別、或資料夾裡的 .class 都不能存檔
 RUN mkdir -p /app/exploded && cd /app/exploded && jar -xf /app/app.jar \
-    && mkdir -p /app/out && mv BOOT-INF/lib /app/out/lib && mv BOOT-INF/classes /app/out/classes
+    && mkdir -p /app/out && mv BOOT-INF/lib /app/out/lib \
+    && jar -cf /app/out/app.jar -C BOOT-INF/classes .
 
 # ============ run stage ============
 # Alpine JRE 比 -jre 小約 60%；以 non-root user 跑，符合容器最佳實務
@@ -44,7 +45,7 @@ WORKDIR /app
 RUN addgroup -S app && adduser -S -G app -u 10001 app
 
 COPY --from=build --chown=app:app /app/out/lib /app/lib
-COPY --from=build --chown=app:app /app/out/classes /app/classes
+COPY --from=build --chown=app:app /app/out/app.jar /app/app.jar
 
 # ---- 啟動加速：CDS（Class Data Sharing）----
 # 免費方案只有 0.1 顆 CPU，冷啟動有一大半時間花在「載入、驗證幾千個類別」。
@@ -66,7 +67,7 @@ RUN JAVA_TOOL_OPTIONS="" java -XX:ArchiveClassesAtExit=/app/app.jsa -Xlog:cds=wa
       -Dspring.jpa.hibernate.ddl-auto=none \
       -Dspring.jpa.properties.hibernate.temp.use_jdbc_metadata_defaults=false \
       -Dspring.jpa.database-platform=org.hibernate.dialect.MySQLDialect \
-      -cp "/app/classes:/app/lib/*" com.voyago.VoyagoApplication > /tmp/cds-training.log 2>&1 \
+      -cp "/app/app.jar:/app/lib/*" com.voyago.VoyagoApplication > /tmp/cds-training.log 2>&1 \
     || true; \
     grep -E "Root WebApplicationContext|CDS|cds" /tmp/cds-training.log | cut -c1-200; \
     (chmod a+r /app/app.jsa && ls -la /app/app.jsa) 2>/dev/null \
@@ -83,4 +84,4 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=40s --retries=5 \
   CMD wget -q --spider http://127.0.0.1:8080/actuator/health || exit 1
 
 # 有 CDS 存檔就用（-Xshare:auto 預設：存檔不相容時 JVM 自己略過，照常啟動）
-ENTRYPOINT ["sh", "-c", "exec java $( [ -f /app/app.jsa ] && echo -XX:SharedArchiveFile=/app/app.jsa ) -cp '/app/classes:/app/lib/*' com.voyago.VoyagoApplication"]
+ENTRYPOINT ["sh", "-c", "exec java $( [ -f /app/app.jsa ] && echo -XX:SharedArchiveFile=/app/app.jsa ) -cp '/app/app.jar:/app/lib/*' com.voyago.VoyagoApplication"]
