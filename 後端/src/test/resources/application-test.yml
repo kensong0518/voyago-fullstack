@@ -30,5 +30,8 @@ app:
   admin-emails: "boss@voyago.test"
   security:
     trusted-proxies: ""
+    # 整個測試套件都從同一個 IP（127.0.0.1）發請求，全站限流放寬；限流本身由 ApiRateLimitFilterTest 驗證
+    api-per-minute: 100000
+    api-writes-per-minute: 100000
   mail:
     from: test@voyago.example.com
