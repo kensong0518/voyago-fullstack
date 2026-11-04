@@ -101,13 +101,41 @@ jobs:
           load: true
           tags: voyago-backend:ci
 
-      - name: 確認 jar 裡有前端網頁、且能啟動到 Spring 載入階段
+      - name: 確認前端網頁打包進去、CDS 存檔有產生
         run: |
           docker run --rm --entrypoint sh voyago-backend:ci -c '
             set -e
-            mkdir -p /tmp/jar && cd /tmp/jar && unzip -q /app/app.jar
-            test -f BOOT-INF/classes/static/index.html && echo "index.html: OK"
-            echo "js bundles: $(ls BOOT-INF/classes/static/assets/*.js | wc -l)"
-            grep -rlq 484615494439 BOOT-INF/classes/static/assets && echo "Google client id baked into bundle: OK"
+            mkdir -p /tmp/x && cd /tmp/x && unzip -q /app/app.jar
+            test -f static/index.html && echo "index.html: OK"
+            echo "js bundles: $(ls static/assets/*.js | wc -l)"
+            grep -rlq 484615494439 static/assets && echo "Google client id baked into bundle: OK"
+            ls -la /app/app.jsa
           '
-          docker run --rm --entrypoint sh voyago-backend:ci -c 'java -jar /app/app.jar --version 2>&1 | head -5 || true'
+
+      # 只給 0.25 顆 CPU，接近免費方案；跑到 Spring 初始化完成就結束（不連資料庫），比較有／沒有 CDS 的時間
+      - name: 量測啟動時間（有 CDS vs 沒有）
+        run: |
+          measure () {
+            docker run --rm --cpus=0.25 --memory=512m --entrypoint sh voyago-backend:ci -c "
+              s=\$(date +%s%N)
+              java $1 -Dspring.context.exit=onRefresh -Dapp.db.migrate=false \
+                -DJWT_SECRET=ci-measure-only-not-a-real-secret-0123456789 -DDB_PASSWORD=x \
+                -Dspring.datasource.url=jdbc:mysql://127.0.0.1:1/x \
+                -Dspring.jpa.hibernate.ddl-auto=none \
+                -Dspring.jpa.properties.hibernate.temp.use_jdbc_metadata_defaults=false \
+                -Dspring.jpa.database-platform=org.hibernate.dialect.MySQLDialect \
+                -cp '/app/app.jar:/app/lib/*' com.voyago.VoyagoApplication > /tmp/out.log 2>&1
+              e=\$(date +%s%N)
+              grep -q 'Root WebApplicationContext: initialization completed' /tmp/out.log || { tail -40 /tmp/out.log; exit 1; }
+              echo \$(( (e - s) / 1000000 ))"
+          }
+          off=$(measure "-Xshare:auto")
+          on=$(measure "-XX:SharedArchiveFile=/app/app.jsa -Xlog:cds=error")
+          echo "沒有 CDS：${off} ms"
+          echo "有 CDS：  ${on} ms"
+          echo "### 冷啟動（0.25 CPU，Spring 初始化完成）" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | 時間 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 沒有 CDS | ${off} ms |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 有 CDS | ${on} ms |" >> "$GITHUB_STEP_SUMMARY"
+
