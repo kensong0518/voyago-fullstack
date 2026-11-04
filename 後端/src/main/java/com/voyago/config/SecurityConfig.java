@@ -1,5 +1,6 @@
 package com.voyago.config;
 
+import com.voyago.security.ApiRateLimitFilter;
 import com.voyago.security.AuthRateLimitFilter;
 import com.voyago.security.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Value;
