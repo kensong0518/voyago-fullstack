@@ -39,7 +39,7 @@ public class JwtUtil {
     }
 
     /** 已驗過簽章與到期時間的 token 內容。 */
-    public record Token(Long memberId, String role, int version) {}
+    public record Token(Long memberId, String email, String role, int version) {}
 
     public String generate(Long memberId, String email, String role) {
         return generate(memberId, email, role, 0);
@@ -63,7 +63,7 @@ public class JwtUtil {
         try {
             Claims c = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
             Number ver = c.get("ver", Number.class);
-            return Optional.of(new Token(Long.valueOf(c.getSubject()), (String) c.get("role"),
+            return Optional.of(new Token(Long.valueOf(c.getSubject()), (String) c.get("email"), (String) c.get("role"),
                     ver == null ? 0 : ver.intValue()));
         } catch (JwtException | IllegalArgumentException e) {
             log.debug("JWT validation failed: {}", e.getMessage());
