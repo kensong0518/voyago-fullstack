@@ -19,9 +19,11 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final SessionValidator sessions;
 
-    public JwtAuthFilter(JwtUtil jwtUtil) {
+    public JwtAuthFilter(JwtUtil jwtUtil, SessionValidator sessions) {
         this.jwtUtil = jwtUtil;
+        this.sessions = sessions;
     }
 
     @Override
@@ -31,9 +33,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            if (jwtUtil.isValid(token)) {
-                Long memberId = jwtUtil.getMemberId(token);
-                String role = jwtUtil.getRole(token);
+            // 簽章＋到期（JwtUtil）之外，再對資料庫確認帳號、版本、角色（SessionValidator）；
+            // 任一項不符就當作沒登入，受保護的 API 回 401/403，前端會清掉 token 導回登入頁
+            var session = jwtUtil.verify(token).flatMap(sessions::validate);
+            if (session.isPresent()) {
+                Long memberId = session.get().memberId();
+                String role = session.get().role();
                 var auth = new UsernamePasswordAuthenticationToken(
                         memberId, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

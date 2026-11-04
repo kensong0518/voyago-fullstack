@@ -32,6 +32,9 @@ async function submit() {
       <div class="card p-8">
         <h1 class="text-2xl font-extrabold">歡迎回來 👋</h1>
         <p class="mt-1 text-sm text-ink-500">登入以管理你的旅程與訂單。</p>
+        <p v-if="route.query.msg === 'loggedOutAll'" class="mt-4 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800" role="status">
+          ✓ 已登出所有裝置，請重新登入。
+        </p>
 
         <div class="mt-4 rounded-xl bg-brand-50 px-4 py-3 text-xs text-brand-800">
           體驗帳號已預先填入：<b>demo@voyago.com</b> / <b>password123</b>

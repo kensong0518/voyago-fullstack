@@ -39,6 +39,15 @@ public class AuthController {
         return auth.googleLogin(req);
     }
 
+    /** 登出所有裝置：手機、別人的電腦上殘留的登入一起失效（懷疑帳號外洩時用）。 */
+    @PostMapping("/logout-all")
+    public Map<String, Boolean> logoutAll() {
+        Long id = CurrentUser.id();
+        if (id == null) throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED, "請先登入");
+        auth.logoutAllDevices(id);
+        return Map.of("ok", true);
+    }
+
     @GetMapping("/me")
     public Map<String, Object> me() {
         Long id = CurrentUser.id();

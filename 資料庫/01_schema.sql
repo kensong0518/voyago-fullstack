@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS member (
   role        VARCHAR(20)  NOT NULL DEFAULT 'MEMBER',  -- MEMBER / STAFF
   provider    VARCHAR(20)  NOT NULL DEFAULT 'LOCAL',   -- LOCAL / GOOGLE
   avatar_url  VARCHAR(500),
+  token_version  INT        NOT NULL DEFAULT 0,  -- 登入憑證版本：+1 讓所有已發出的 token 失效
+  email_verified TINYINT(1) NOT NULL DEFAULT 0,  -- Google 登入＝已驗證；帳密註冊＝未驗證
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_member_email (email)

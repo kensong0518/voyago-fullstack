@@ -1,6 +1,7 @@
 package com.voyago.websocket;
 
 import com.voyago.security.JwtUtil;
+import com.voyago.security.SessionValidator;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
@@ -19,21 +20,25 @@ import java.util.Map;
 public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final SessionValidator sessions;
 
-    public JwtHandshakeInterceptor(JwtUtil jwtUtil) {
+    public JwtHandshakeInterceptor(JwtUtil jwtUtil, SessionValidator sessions) {
         this.jwtUtil = jwtUtil;
+        this.sessions = sessions;
     }
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                     WebSocketHandler wsHandler, Map<String, Object> attributes) {
         String token = extractToken(request);
-        if (token == null || !jwtUtil.isValid(token)) {
+        var session = token == null ? java.util.Optional.<SessionValidator.Session>empty()
+                : jwtUtil.verify(token).flatMap(sessions::validate);   // 跟 REST 一樣檢查帳號、版本、角色
+        if (session.isEmpty()) {
             response.setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
             return false;
         }
-        attributes.put("memberId", jwtUtil.getMemberId(token));
-        attributes.put("role", jwtUtil.getRole(token));
+        attributes.put("memberId", session.get().memberId());
+        attributes.put("role", session.get().role());
         return true;
     }
 
