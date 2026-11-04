@@ -466,6 +466,12 @@ export const api = {
     return adminOnly(async () => (await client.put(`/admin/bookings/${id}/status`, { status })).data);
   },
 
+  // 登出所有裝置：後端把這個帳號的登入憑證版本 +1，所有舊 token 立刻失效
+  async logoutAllDevices() {
+    if (DEMO_ONLY) return { ok: true };
+    return (await client.post("/auth/logout-all")).data;
+  },
+
   // ---- 後台 D：報表、CSV、操作紀錄、優惠碼 ----
   adminReport(days = 30) {
     return adminOnly(async () => (await client.get("/admin/reports", { params: { days } })).data);
@@ -483,8 +489,8 @@ export const api = {
       return { name, rows: Number(res.headers["x-row-count"] || 0) };
     });
   },
-  adminAuditLog({ page = 0, size = 20 } = {}) {
-    return adminOnly(async () => (await client.get("/admin/audit", { params: { page, size } })).data);
+  adminAuditLog({ page = 0, size = 20, category = "" } = {}) {
+    return adminOnly(async () => (await client.get("/admin/audit", { params: { page, size, category } })).data);
   },
   adminListCoupons() {
     return adminOnly(async () => (await client.get("/admin/coupons")).data);

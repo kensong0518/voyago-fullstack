@@ -143,7 +143,7 @@ public class AuthServiceImpl implements AuthService {
         if (!Boolean.TRUE.equals(m.getEmailVerified())) {
             // 這個帳號是用帳密註冊的，當初沒驗證 Email 是不是本人的。現在 Google 證明了 Email 的真正擁有者，
             // 可能是別人先拿這個 Email 搶註：把舊密碼作廢、讓所有舊 token 失效，帳號回到真正的擁有者手上。
-            // 擁有者之後要用密碼登入，可以在會員中心重新設定。
+            // 之後擁有者用 Google 登入即可。
             boolean hadPassword = m.getPassword() != null;
             m.setPassword(null);
             m.setEmailVerified(true);

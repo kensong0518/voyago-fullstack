@@ -21,6 +21,20 @@ const profileMsg = ref("");
 
 // 自刪
 const deleteBusy = ref(false);
+const logoutAllBusy = ref(false);
+const logoutAllErr = ref("");
+
+// 登出所有裝置：懷疑帳號在別的電腦或手機上被登入時用，所有已發出的登入憑證立刻失效
+async function logoutAllDevices() {
+  if (!window.confirm("確定要登出所有裝置嗎？包含這台，都需要重新登入。")) return;
+  logoutAllErr.value = ""; logoutAllBusy.value = true;
+  try {
+    await api.logoutAllDevices();
+    auth.logout();
+    router.push({ name: "login", query: { msg: "loggedOutAll" } });
+  } catch (e) { logoutAllErr.value = e.message || "操作失敗，請稍後再試"; }
+  finally { logoutAllBusy.value = false; }
+}
 const deleteErr = ref("");
 
 const STATUS = {
@@ -173,6 +187,22 @@ async function deleteMyAccount() {
             <p v-if="profileMsg" class="rounded-lg px-3 py-2 text-sm" :class="profileMsg.startsWith('✓') ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'">{{ profileMsg }}</p>
             <button :disabled="savingProfile" class="btn-primary">{{ savingProfile ? "儲存中…" : "儲存變更" }}</button>
           </form>
+
+          <!-- 帳號安全 -->
+          <div class="card mt-6 max-w-lg p-6">
+            <h3 class="text-base font-bold">🔒 帳號安全</h3>
+            <p class="mt-2 text-sm text-ink-600">
+              覺得帳號可能被別人用了（例如在別人的電腦登入後忘了登出）？按下面的按鈕，所有裝置上的登入都會立刻失效。
+            </p>
+            <ul class="mt-2 list-disc space-y-0.5 pl-5 text-xs text-ink-500">
+              <li>登入有效期為 1 天，到期會請你重新登入</li>
+              <li>密碼連續錯 5 次，帳號會暫時鎖定 15 分鐘</li>
+            </ul>
+            <p v-if="logoutAllErr" class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ logoutAllErr }}</p>
+            <button type="button" @click="logoutAllDevices" :disabled="logoutAllBusy" class="btn-outline mt-4 disabled:opacity-60">
+              {{ logoutAllBusy ? "處理中…" : "登出所有裝置" }}
+            </button>
+          </div>
 
           <!-- 危險區：刪除帳號 -->
           <div class="card mt-6 max-w-lg border border-red-200 bg-red-50/40 p-6">
