@@ -90,8 +90,8 @@ watch(drawerOpen, (open) => {
 });
 onBeforeUnmount(() => { document.body.style.overflow = ""; window.removeEventListener("keydown", onKey); });
 
-const chip = (on) => ["rounded-full px-3 py-1.5 text-sm font-medium transition",
-  on ? "bg-brand-600 text-white" : "bg-ink-50 text-ink-600 ring-1 ring-ink-200"];
+const chip = (on) => ["rounded-md px-3 py-1.5 text-sm font-medium transition",
+  on ? "bg-navy text-white" : "bg-white text-ink-600 ring-1 ring-ink-200"];
 
 onMounted(async () => {
   try { all.value = await api.getRoutes({}); }
@@ -100,10 +100,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="border-b border-ink-100 bg-ink-50">
-    <div class="container-x py-12">
-      <h1 class="text-3xl font-extrabold">探索歐洲行程</h1>
-      <p class="mt-2 text-ink-500">{{ loading ? "搜尋中…" : `共 ${filtered.length} 條歐洲路線` }}</p>
+  <section class="border-b border-sea-line bg-sea">
+    <div class="container-x py-10 sm:py-12">
+      <h1 class="font-serif text-3xl font-bold text-navy">全部路線</h1>
+      <p class="mt-2 text-sea-deep">{{ loading ? "搜尋中…" : `符合條件的有 ${filtered.length} 條` }}</p>
 
       <div class="mt-6 flex flex-col gap-3 sm:flex-row">
         <div class="relative flex-1">
@@ -120,44 +120,44 @@ onMounted(async () => {
           <option v-for="s in SORTS" :key="s.v" :value="s.v">{{ s.l }}</option>
         </select>
         <button @click="onlyFav = !onlyFav"
-          :class="['btn hidden whitespace-nowrap sm:inline-flex', onlyFav ? 'bg-rose-500 text-white' : 'btn-outline']">
-          ♥ 我的收藏 ({{ fav.count }})
+          :class="['btn hidden whitespace-nowrap sm:inline-flex', onlyFav ? 'bg-navy text-white' : 'btn-outline bg-white']">
+          只看收藏（{{ fav.count }}）
         </button>
       </div>
 
       <!-- 主題標籤 -->
       <div class="mt-4 hidden flex-wrap gap-2 sm:flex">
-        <button @click="tag = ''" :class="['rounded-full px-3.5 py-1.5 text-sm font-medium transition', tag === '' ? 'bg-brand-600 text-white' : 'bg-white text-ink-600 ring-1 ring-ink-200 hover:bg-ink-50']">全部主題</button>
-        <button v-for="t in TAGS" :key="t" @click="tag = t" :class="['rounded-full px-3.5 py-1.5 text-sm font-medium transition', tag === t ? 'bg-brand-600 text-white' : 'bg-white text-ink-600 ring-1 ring-ink-200 hover:bg-ink-50']">{{ t }}</button>
+        <button @click="tag = ''" :class="['rounded-md px-3.5 py-1.5 text-sm font-medium transition', tag === '' ? 'bg-navy text-white' : 'bg-white text-ink-600 ring-1 ring-ink-200 hover:bg-ink-50']">全部主題</button>
+        <button v-for="t in TAGS" :key="t" @click="tag = t" :class="['rounded-md px-3.5 py-1.5 text-sm font-medium transition', tag === t ? 'bg-navy text-white' : 'bg-white text-ink-600 ring-1 ring-ink-200 hover:bg-ink-50']">{{ t }}</button>
       </div>
 
       <!-- 進階篩選（桌機） -->
       <div class="mt-4 hidden sm:block">
         <button @click="showFilters = !showFilters" class="text-sm font-semibold text-brand-700 hover:underline">
           {{ showFilters ? "▾" : "▸" }} 進階篩選<span v-if="activeCount"> ({{ activeCount }})</span>
-          <span v-if="activeCount" @click.stop="clearAll" class="ml-2 text-ink-400 hover:text-ink-600">清除全部 ✕</span>
+          <span v-if="activeCount" @click.stop="clearAll" class="ml-2 text-ink-400 hover:text-ink-600">清除全部</span>
         </button>
 
-        <div v-if="showFilters" class="mt-3 grid gap-4 rounded-2xl bg-white p-4 ring-1 ring-ink-100 sm:grid-cols-3">
+        <div v-if="showFilters" class="mt-3 grid gap-4 rounded-md bg-white p-4 ring-1 ring-sea-line sm:grid-cols-3">
           <div>
             <p class="mb-2 text-xs font-semibold text-ink-500">國家</p>
             <div class="flex flex-wrap gap-1.5">
               <button v-for="c in allCountries" :key="c" @click="toggleCountry(c)"
-                :class="['rounded-full px-2.5 py-1 text-xs font-medium transition', countries.includes(c) ? 'bg-brand-600 text-white' : 'bg-ink-50 text-ink-600 ring-1 ring-ink-200 hover:bg-ink-100']">{{ c }}</button>
+                :class="['rounded-md px-2.5 py-1 text-xs font-medium transition', countries.includes(c) ? 'bg-navy text-white' : 'bg-ink-50 text-ink-600 ring-1 ring-ink-200 hover:bg-ink-100']">{{ c }}</button>
             </div>
           </div>
           <div>
             <p class="mb-2 text-xs font-semibold text-ink-500">價格</p>
             <div class="flex flex-wrap gap-1.5">
               <button v-for="p in PRICE_BUCKETS" :key="p.v" @click="priceBucket = p.v"
-                :class="['rounded-full px-2.5 py-1 text-xs font-medium transition', priceBucket === p.v ? 'bg-brand-600 text-white' : 'bg-ink-50 text-ink-600 ring-1 ring-ink-200 hover:bg-ink-100']">{{ p.l }}</button>
+                :class="['rounded-md px-2.5 py-1 text-xs font-medium transition', priceBucket === p.v ? 'bg-navy text-white' : 'bg-ink-50 text-ink-600 ring-1 ring-ink-200 hover:bg-ink-100']">{{ p.l }}</button>
             </div>
           </div>
           <div>
             <p class="mb-2 text-xs font-semibold text-ink-500">天數</p>
             <div class="flex flex-wrap gap-1.5">
               <button v-for="d in DAY_BUCKETS" :key="d.v" @click="dayBucket = d.v"
-                :class="['rounded-full px-2.5 py-1 text-xs font-medium transition', dayBucket === d.v ? 'bg-brand-600 text-white' : 'bg-ink-50 text-ink-600 ring-1 ring-ink-200 hover:bg-ink-100']">{{ d.l }}</button>
+                :class="['rounded-md px-2.5 py-1 text-xs font-medium transition', dayBucket === d.v ? 'bg-navy text-white' : 'bg-ink-50 text-ink-600 ring-1 ring-ink-200 hover:bg-ink-100']">{{ d.l }}</button>
             </div>
           </div>
         </div>
@@ -211,7 +211,7 @@ onMounted(async () => {
             </div>
           </div>
           <label class="flex items-center justify-between rounded-2xl bg-ink-50 px-4 py-3 text-sm font-medium">
-            <span>♥ 只看我的收藏（{{ fav.count }}）</span>
+            <span>只看我的收藏（{{ fav.count }}）</span>
             <input type="checkbox" v-model="onlyFav" class="h-5 w-5 accent-rose-500" />
           </label>
         </div>
@@ -232,8 +232,7 @@ onMounted(async () => {
         </div>
       </div>
       <div v-else-if="filtered.length === 0" key="empty" class="py-20 text-center text-ink-500">
-        <p class="text-5xl">🧭</p>
-        <p class="mt-4">找不到符合條件的行程，試試放寬篩選條件吧。</p>
+        <p>沒有符合條件的行程。放寬天數或預算再找一次。</p>
         <button @click="clearAll" class="btn-outline mt-4">清除所有篩選</button>
       </div>
       <div v-else key="grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

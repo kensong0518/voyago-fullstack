@@ -30,7 +30,7 @@ async function submit() {
   <div class="container-x grid min-h-[70vh] place-items-center py-12">
     <div class="w-full max-w-md">
       <div class="card p-8">
-        <h1 class="text-2xl font-extrabold">歡迎回來 👋</h1>
+        <h1 class="text-2xl font-extrabold">歡迎回來</h1>
         <p class="mt-1 text-sm text-ink-500">登入以管理你的旅程與訂單。</p>
         <p v-if="route.query.msg === 'loggedOutAll'" class="mt-4 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800" role="status">
           ✓ 已登出所有裝置，請重新登入。

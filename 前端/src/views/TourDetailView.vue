@@ -8,6 +8,8 @@ import { useFavoritesStore } from "../stores/favorites";
 import RouteCard from "../components/RouteCard.vue";
 import RatingBadge from "../components/RatingBadge.vue";
 import ReviewSection from "../components/ReviewSection.vue";
+import EuropeRouteMap from "../components/EuropeRouteMap.vue";
+import { stopsOf } from "../data/routeGeo";
 import { useCompareStore } from "../stores/compare";
 import { parseItinerary, COST_INCLUDED, COST_EXCLUDED, TRAVEL_NOTES, buildGallery } from "../data/content";
 
@@ -39,6 +41,7 @@ const gallery = computed(() => data.value ? buildGallery(data.value, allRoutes.v
 function onReviewsChanged(summary) {
   if (data.value) { data.value.rating = summary.average; data.value.reviews = summary.count; }
 }
+const routeStops = computed(() => (data.value ? stopsOf(data.value) : []));
 const costIncluded = COST_INCLUDED, costExcluded = COST_EXCLUDED, notes = TRAVEL_NOTES;
 
 const twd = (n) => new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD", maximumFractionDigits: 0 }).format(n);
@@ -95,23 +98,23 @@ async function book() {
   </div>
 
   <div v-else-if="notFound" class="container-x grid min-h-[50vh] place-items-center py-20 text-center">
-    <div><p class="text-6xl">🧭</p><p class="mt-4 text-ink-500">找不到此行程。</p>
+    <div><p class="text-ink-500">找不到這條行程，可能已經下架。</p>
       <RouterLink to="/tours" class="btn-primary mt-6">返回行程列表</RouterLink></div>
   </div>
 
   <template v-else>
     <!-- Hero -->
-    <div class="relative h-[42vh] min-h-[320px] w-full overflow-hidden bg-gradient-to-br from-brand-500 to-ink-900">
+    <div class="relative h-[42vh] min-h-[320px] w-full overflow-hidden bg-navy">
       <img :src="activeImg" :alt="data.name" fetchpriority="high" @error="(e) => (e.target.style.display = 'none')" class="h-full w-full object-cover opacity-80" />
       <div class="absolute inset-0 bg-gradient-to-t from-ink-950/90 to-transparent" />
       <div class="container-x absolute inset-x-0 bottom-0 pb-8 text-white">
-        <RouterLink to="/tours" class="text-sm text-white/80 hover:text-white">← 返回行程列表</RouterLink>
+        <RouterLink to="/tours" class="text-sm text-white/80 underline-offset-4 hover:text-white hover:underline">全部路線</RouterLink>
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <span class="chip bg-white/20 text-white">{{ data.country }}</span>
           <span class="chip bg-white/20 text-white">{{ data.days }} 天</span>
         </div>
-        <h1 class="mt-2 text-3xl font-extrabold sm:text-4xl">{{ data.name }}</h1>
-        <p class="mt-1 text-white/80">📍 {{ data.location }}</p>
+        <h1 class="mt-2 font-serif text-3xl font-bold sm:text-4xl">{{ data.name }}</h1>
+        <p class="mt-1 text-white/85">{{ routeStops.length > 1 ? routeStops.map((s) => s.name).join("、") : data.location }}</p>
       </div>
     </div>
 
@@ -136,11 +139,11 @@ async function book() {
           <div class="flex gap-2">
             <button @click="compare.toggle(data)" class="btn-outline text-sm" :aria-pressed="compare.has(data.slug)"
               :class="compare.has(data.slug) ? '!border-ink-900 !bg-ink-900 !text-white' : ''">
-              {{ compare.has(data.slug) ? '✓ 比較中' : '＋ 比較' }}
+              {{ compare.has(data.slug) ? '比較中' : '加入比較' }}
             </button>
             <button @click="fav.toggle(data.id)" class="btn-outline text-sm"
               :class="fav.has(data.id) ? '!border-rose-300 !text-rose-600' : ''">
-              {{ fav.has(data.id) ? '♥ 已收藏' : '♡ 收藏' }}
+              {{ fav.has(data.id) ? '已收藏' : '收藏' }}
             </button>
           </div>
         </div>
@@ -149,8 +152,17 @@ async function book() {
         <div class="mt-4 flex flex-wrap gap-2"><span v-for="t in tags" :key="t" class="chip">{{ t }}</span></div>
         <p v-if="itinerary.overview" class="mt-5 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-800">{{ itinerary.overview }}。</p>
 
+        <!-- 路線地圖：只放大這條行程 -->
+        <template v-if="routeStops.length > 1">
+          <h2 class="mt-10 font-serif text-xl font-bold text-navy">路線</h2>
+          <div class="mt-4 overflow-hidden rounded-md ring-1 ring-sea-line">
+            <EuropeRouteMap :routes="[data]" :selected="data.slug" :focus="data.slug" :interactive="false"
+              :label="`${data.name} 路線圖：${routeStops.map((s) => s.name).join('、')}`" />
+          </div>
+        </template>
+
         <!-- 逐日行程時間軸 -->
-        <h2 class="mt-10 text-xl font-bold">逐日行程</h2>
+        <h2 class="mt-10 font-serif text-xl font-bold text-navy">逐日行程</h2>
         <ol class="mt-4 space-y-4 border-l-2 border-brand-100 pl-6">
           <li v-for="(d, i) in itinerary.days" :key="`day-${i}-${d.slice(0,8)}`" class="relative">
             <span class="absolute -left-[31px] grid h-6 w-6 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white">{{ i + 1 }}</span>
@@ -161,13 +173,13 @@ async function book() {
         <!-- 費用包含 / 不含 -->
         <div class="mt-10 grid gap-4 sm:grid-cols-2">
           <div class="card p-5">
-            <h3 class="flex items-center gap-2 font-bold text-brand-700"><span>✓</span> 費用包含</h3>
+            <h3 class="font-bold text-navy">費用包含</h3>
             <ul class="mt-3 space-y-2 text-sm text-ink-600">
               <li v-for="c in costIncluded" :key="c" class="flex gap-2"><span class="text-brand-500">•</span>{{ c }}</li>
             </ul>
           </div>
           <div class="card p-5">
-            <h3 class="flex items-center gap-2 font-bold text-ink-500"><span>✕</span> 費用不含</h3>
+            <h3 class="font-bold text-navy">費用不含</h3>
             <ul class="mt-3 space-y-2 text-sm text-ink-600">
               <li v-for="c in costExcluded" :key="c" class="flex gap-2"><span class="text-ink-300">•</span>{{ c }}</li>
             </ul>
@@ -175,10 +187,10 @@ async function book() {
         </div>
 
         <!-- 行前須知 -->
-        <h2 class="mt-10 text-xl font-bold">行前須知</h2>
+        <h2 class="mt-10 font-serif text-xl font-bold text-navy">行前須知</h2>
         <ul class="mt-4 space-y-2">
           <li v-for="n in notes" :key="n" class="flex gap-3 text-ink-600">
-            <span class="mt-0.5 text-amber-500">⚠️</span><span>{{ n }}</span>
+            <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sea-deep" aria-hidden="true" /><span>{{ n }}</span>
           </li>
         </ul>
 
@@ -215,7 +227,7 @@ async function book() {
           </button>
           <p v-if="!auth.isLoggedIn" class="mt-2 text-center text-xs text-ink-400">需登入會員才能完成預訂</p>
           <button type="button" @click="fav.toggle(data.id)" class="btn-outline mt-2 w-full">
-            {{ fav.has(data.id) ? '♥ 已加入收藏' : '♡ 加入收藏' }}
+            {{ fav.has(data.id) ? '已加入收藏' : '加入收藏' }}
           </button>
         </form>
       </div>
@@ -224,7 +236,7 @@ async function book() {
     <!-- 相似行程推薦（後端算分：標籤重疊 + 同國家，不是隨機湊的） -->
     <section v-if="similarLoading || similar.length" class="container-x pb-16">
       <div class="flex items-baseline gap-3">
-        <h2 class="text-xl font-bold">你可能也喜歡</h2>
+        <h2 class="font-serif text-xl font-bold text-navy">你可能也喜歡</h2>
         <span class="text-xs text-ink-400">依標籤相似度與地區自動推薦</span>
       </div>
       <div v-if="similarLoading" class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

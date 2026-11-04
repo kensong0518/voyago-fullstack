@@ -20,9 +20,9 @@ const dateText = (d) => new Date(d).toLocaleDateString("zh-TW");
 const orderNo = computed(() => booking.value ? "VG" + String(booking.value.id).slice(-8).padStart(8, "0") : "");
 
 const METHODS = [
-  { v: "CARD",    icon: "💳", label: "信用卡",  hint: "VISA / Mastercard / JCB" },
-  { v: "ATM",     icon: "🏧", label: "ATM 轉帳", hint: "提供虛擬帳號" },
-  { v: "LINEPAY", icon: "🟢", label: "LINE Pay", hint: "跳轉付款（示範）" },
+  { v: "CARD",    label: "信用卡",  hint: "VISA / Mastercard / JCB" },
+  { v: "ATM",     label: "ATM 轉帳", hint: "提供虛擬帳號" },
+  { v: "LINEPAY", label: "LINE Pay", hint: "跳轉付款（示範）" },
 ];
 
 onMounted(async () => {
@@ -81,14 +81,13 @@ async function pay() {
 
     <!-- 找不到訂單 -->
     <div v-else-if="!booking" class="mx-auto max-w-lg card p-10 text-center">
-      <p class="text-5xl">🧾</p>
-      <p class="mt-4 text-ink-500">找不到這筆訂單，它可能已被取消。</p>
+            <p class="mt-4 text-ink-500">找不到這筆訂單，它可能已被取消。</p>
       <RouterLink to="/dashboard" class="btn-primary mt-6 inline-block">回會員中心</RouterLink>
     </div>
 
     <!-- 付款完成 -->
     <div v-else-if="state === 'done'" class="mx-auto max-w-lg card p-10 text-center">
-      <div class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-brand-50 text-3xl">✅</div>
+      <div class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand-600 text-white" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
       <h1 class="mt-4 text-2xl font-extrabold">付款完成！</h1>
       <p class="mt-2 text-ink-500">訂單編號 <span class="font-mono font-bold text-ink-700">{{ orderNo }}</span></p>
       <div class="mt-6 rounded-2xl bg-ink-50 p-4 text-left text-sm">
@@ -109,7 +108,7 @@ async function pay() {
     <div v-else class="mx-auto grid max-w-4xl gap-6 lg:grid-cols-5">
       <div class="lg:col-span-3">
         <h1 class="text-2xl font-extrabold">結帳</h1>
-        <p class="mt-1 text-sm text-amber-700">⚠️ 示範付款：不會真的扣款，請勿輸入真實卡號或個資。</p>
+        <p class="mt-1 text-sm text-amber-700">示範付款：不會真的扣款，請勿輸入真實卡號或個資。</p>
 
         <!-- 付款方式 -->
         <div class="card mt-5 p-5">
@@ -118,8 +117,7 @@ async function pay() {
             <button v-for="m in METHODS" :key="m.v" type="button" @click="method = m.v"
               :class="['rounded-2xl border p-3 text-left transition',
                        method === m.v ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-300' : 'border-ink-200 hover:bg-ink-50']">
-              <div class="text-xl">{{ m.icon }}</div>
-              <div class="mt-1 text-sm font-bold">{{ m.label }}</div>
+                            <div class="mt-1 text-sm font-bold">{{ m.label }}</div>
               <div class="text-xs text-ink-400">{{ m.hint }}</div>
             </button>
           </div>

@@ -42,7 +42,7 @@ async function submit() {
   <div class="container-x grid min-h-[70vh] place-items-center py-12">
     <div class="w-full max-w-md">
       <div class="card p-8">
-        <h1 class="text-2xl font-extrabold">建立你的帳號 ✦</h1>
+        <h1 class="text-2xl font-extrabold">建立你的帳號</h1>
         <p class="mt-1 text-sm text-ink-500">免費加入會員，開始收藏與預訂歐洲行程。</p>
 
         <form @submit.prevent="submit" class="mt-6 space-y-4">

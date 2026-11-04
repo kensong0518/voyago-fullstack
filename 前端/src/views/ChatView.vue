@@ -73,7 +73,7 @@ async function send() {
 
         <div ref="scroller" class="flex-1 space-y-3 overflow-y-auto p-5">
           <div v-if="messages.length === 0" class="grid h-full place-items-center text-center text-ink-400">
-            <div><p class="text-4xl">💬</p><p class="mt-3 text-sm">傳送第一則訊息開始對話吧！</p></div>
+            <div><p class="text-sm">傳送第一則訊息開始對話吧！</p></div>
           </div>
           <div v-for="m in messages" :key="m.id" :class="['flex', m.sender === 'MEMBER' ? 'justify-end' : 'justify-start']">
             <div :class="['max-w-[75%] rounded-2xl px-4 py-2.5 text-sm', m.sender === 'MEMBER' ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-ink-100 text-ink-800']">

@@ -7,10 +7,10 @@ const props = defineProps({ advisor: { type: Object, required: true } });
 
 <template>
   <section v-if="['loading', 'done', 'error'].includes(advisor.status.value)" id="ai-results"
-    class="scroll-mt-16 border-b border-ink-100 bg-gradient-to-b from-brand-50 to-white py-12" aria-live="polite">
+    class="scroll-mt-16 border-b border-ink-100 bg-white py-12" aria-live="polite">
     <div class="container-x">
-      <p class="text-sm font-semibold text-brand-700">✦ AI 行程顧問</p>
-      <h2 class="mt-1 text-2xl font-extrabold">「{{ advisor.lastQuery.value }}」</h2>
+      <p class="text-sm text-ink-500">AI 行程顧問的推薦</p>
+      <h2 class="mt-1 font-serif text-2xl font-bold text-navy">「{{ advisor.lastQuery.value }}」</h2>
 
       <div v-if="advisor.status.value === 'loading'" class="mt-6">
         <p class="text-ink-500">正在比對所有行程的天數、價格與主題…（第一次使用可能要 10–20 秒）</p>
@@ -22,7 +22,7 @@ const props = defineProps({ advisor: { type: Object, required: true } });
         </div>
       </div>
 
-      <div v-else-if="advisor.status.value === 'error'" class="mt-6 rounded-2xl bg-white p-6 ring-1 ring-amber-200">
+      <div v-else-if="advisor.status.value === 'error'" class="mt-6 rounded-md bg-white p-6 ring-1 ring-amber-200">
         <p class="font-semibold text-amber-800">{{ advisor.error.value }}</p>
         <RouterLink to="/tours" class="btn-outline mt-4">瀏覽全部行程</RouterLink>
       </div>
@@ -32,8 +32,8 @@ const props = defineProps({ advisor: { type: Object, required: true } });
         <div v-if="advisor.results.value.length" class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div v-for="(r, i) in advisor.results.value" :key="r.route.id" class="flex flex-col gap-3">
             <RouteCard :route="r.route" />
-            <p class="rounded-xl bg-white p-3 text-sm text-ink-700 ring-1 ring-brand-100">
-              <span class="font-bold text-brand-700">推薦 {{ i + 1 }}・</span>{{ r.reason }}
+            <p class="border-l-2 border-brand-600 pl-3 text-sm leading-relaxed text-ink-700">
+              <span class="font-bold text-navy">推薦 {{ i + 1 }}・</span>{{ r.reason }}
             </p>
           </div>
         </div>

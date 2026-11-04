@@ -46,7 +46,7 @@ onMounted(async () => {
 <template>
   <section class="border-b border-ink-100 bg-ink-50">
     <div class="container-x py-10">
-      <RouterLink to="/tours" class="text-sm text-ink-500 hover:text-ink-700">← 回行程列表</RouterLink>
+      <RouterLink to="/tours" class="text-sm text-ink-500 hover:text-ink-700">全部路線</RouterLink>
       <h1 class="mt-2 text-3xl font-extrabold">行程比較</h1>
       <p class="mt-2 text-ink-500">最多並排 {{ COMPARE_MAX }} 個行程，綠色標示該項目最划算的選擇。</p>
     </div>
@@ -57,8 +57,7 @@ onMounted(async () => {
     <p v-else-if="error" class="py-16 text-center text-rose-600">{{ error }}</p>
 
     <div v-else-if="routes.length === 0" class="mx-auto max-w-md py-16 text-center">
-      <p class="text-5xl">⚖️</p>
-      <p class="mt-4 text-ink-500">還沒有加入比較的行程。在行程卡片上按「＋ 比較」，最多可選 {{ COMPARE_MAX }} 個。</p>
+            <p class="mt-4 text-ink-500">還沒有加入比較的行程。在行程卡片上按「＋ 比較」，最多可選 {{ COMPARE_MAX }} 個。</p>
       <RouterLink to="/tours" class="btn-primary mt-6 inline-block">去挑行程</RouterLink>
     </div>
 
