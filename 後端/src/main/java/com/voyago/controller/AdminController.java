@@ -139,8 +139,9 @@ public class AdminController {
 
     @GetMapping("/audit")
     public PageResult<AuditLogDto> auditLog(@RequestParam(defaultValue = "0") int page,
-                                            @RequestParam(defaultValue = "20") int size) {
-        return audit.list(page, size);
+                                            @RequestParam(defaultValue = "20") int size,
+                                            @RequestParam(defaultValue = "") String category) {
+        return audit.list(page, size, category);
     }
 
     // ---------- 優惠碼 ----------

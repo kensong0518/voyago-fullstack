@@ -67,6 +67,9 @@ services:
       - key: TRUST_PRIVATE_NETWORK_PROXIES
         value: "true"
         # Render 的容器只能透過平台代理連到：信任私有網段來的代理，才拿得到真實訪客 IP 做限流
+      - key: API_DOCS_ENABLED
+        value: "false"
+        # 正式站不公開 Swagger API 文件
       - key: CLIENT_IP_HEADER
         value: CF-Connecting-IP
         # Render 前面是 Cloudflare，這個 header 由 Cloudflare 依實際連線設定、偽造不了；

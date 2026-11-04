@@ -37,9 +37,24 @@ public class Member {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
+    /**
+     * 登入憑證版本：發出的 JWT 會帶著這個數字，每次請求都比對資料庫。
+     * 「登出所有裝置」、帳號被接管後回收等情況把它 +1，舊的 token 立刻全部失效（JWT 本身無法撤銷，靠這個補上）。
+     */
+    @Column(name = "token_version", nullable = false)
+    private Integer tokenVersion = 0;
+
+    /** Email 是否確認過所有權：Google 登入（Google 已驗證）為 true；帳密註冊不寄驗證信，為 false。 */
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    public Integer getTokenVersion() { return tokenVersion; }
+    public void setTokenVersion(Integer tokenVersion) { this.tokenVersion = tokenVersion; }
+    public Boolean getEmailVerified() { return emailVerified; }
+    public void setEmailVerified(Boolean emailVerified) { this.emailVerified = emailVerified; }
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }

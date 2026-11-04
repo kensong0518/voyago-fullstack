@@ -25,10 +25,13 @@ public class MemberServiceImpl implements MemberService {
     private final PasswordEncoder encoder;
     private final BookingRepository bookings;
     private final AuditService audit;
+    private final com.voyago.security.SessionValidator sessions;
 
     public MemberServiceImpl(MemberRepository members, MemberDao memberDao, PasswordEncoder encoder,
-                             BookingRepository bookings, AuditService audit) {
+                             BookingRepository bookings, AuditService audit,
+                             com.voyago.security.SessionValidator sessions) {
         this.audit = audit;
+        this.sessions = sessions;
         this.members = members;
         this.memberDao = memberDao;
         this.encoder = encoder;
@@ -92,6 +95,7 @@ public class MemberServiceImpl implements MemberService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到會員"));
         requireNoActiveBookings(targetId);
         members.delete(m);
+        sessions.evict(targetId);   // 被刪的帳號手上的 token 立即失效，不等快取過期
         audit.record("MEMBER_DELETE", "MEMBER", targetId, m.getEmail());
     }
 
@@ -102,6 +106,7 @@ public class MemberServiceImpl implements MemberService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到會員"));
         requireNoActiveBookings(memberId);
         members.delete(m);
+        sessions.evict(memberId);
     }
 
     /**

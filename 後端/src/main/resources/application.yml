@@ -36,7 +36,8 @@ spring:
 app:
   jwt:
     secret: ${JWT_SECRET}
-    expiration-ms: 604800000
+    # 登入有效 1 天：token 存在瀏覽器裡，有效期越短，萬一外洩能被冒用的時間越短
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   cors:
     allowed-origins: ${FRONTEND_ORIGIN:http://localhost:5173}
   # 網站公開網址：行程頁分享預覽的 og:url。沒設就用 FRONTEND_ORIGIN（單一網址部署時兩者相同）
@@ -77,6 +78,13 @@ app:
     # 兩個都設定才會啟用，優先於 MAIL_HOST
     relay-url: ${MAIL_RELAY_URL:}
     relay-secret: ${MAIL_RELAY_SECRET:}
+
+# Swagger API 文件：本機開發方便測試；正式站關掉（render.yaml 設 API_DOCS_ENABLED=false），不公開整份 API 地圖
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:true}
 
 # 只暴露 health 與 info，不洩漏 env / heapdump / 其他敏感端點
 management:

@@ -21,6 +21,12 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private final com.voyago.service.AuditService audit;
+
+    public GlobalExceptionHandler(com.voyago.service.AuditService audit) {
+        this.audit = audit;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
         String msg = ex.getBindingResult().getFieldErrors().stream()
@@ -56,7 +62,14 @@ public class GlobalExceptionHandler {
      * 已登入但權限不足 → 403。
      */
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex,
+                                                                  jakarta.servlet.http.HttpServletRequest req) {
+        // 已登入的人去打沒權限的 API（例如一般會員打後台），記成資安事件：可能是有人在試探
+        try {
+            audit.securityForCurrentUser("ACCESS_DENIED", req.getMethod() + " " + req.getRequestURI());
+        } catch (RuntimeException e) {
+            log.warn("記錄 ACCESS_DENIED 失敗：{}", e.getMessage());
+        }
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "權限不足"));
     }
