@@ -281,15 +281,21 @@ erDiagram
 
 ## 安全性
 
-- 無狀態驗證：`SessionCreationPolicy.STATELESS`，用 JWT 取代 Session。`JwtAuthFilter` 解 Bearer Token 注入 `SecurityContext`，天然免疫 CSRF，後端也能水平擴展。
-- 密碼：BCrypt 雜湊儲存，規則「8+ 字元、含英文與數字」前後端都驗。
-- 擋暴力破解：`AuthRateLimitFilter`（Bucket4j token bucket）對登入 / 註冊 / Google 端點做 per-IP 限流；信任的代理層由 `app.security.trusted-proxies` 設定，避免用戶端自帶 `X-Forwarded-For` 繞過限流。
-- 方法級授權：`@EnableMethodSecurity` + `@PreAuthorize("hasRole('STAFF')")`，管理端點由後端強制，不靠前端隱藏。
-- 第三方登入不信前端：Google ID Token 由後端 `GoogleIdTokenVerifier` 驗簽章和 audience，首次登入自動建帳號。
-- DTO 與 Entity 分離：API 只回 DTO，密碼雜湊這種欄位永遠不外洩。
-- 錯誤不洩內部：全域例外處理器記 log 但不回 stack trace；Actuator 只開 health/info。
-- 前端標頭：Nginx 設 CSP、`X-Frame-Options`、`Referrer-Policy`、`X-Content-Type-Options`。
-- 沒有硬編碼密鑰：DB 帳密、`JWT_SECRET`、Google Client ID 全走環境變數，正式環境未設定會直接拒絕啟動（fail-fast），避免誤用預設值上線。
+目標是「資料不被偷、帳號不被冒用」。依攻擊情境整理：
+
+| 情境 | 防護 |
+| --- | --- |
+| 猜密碼 | 每個 IP 每分鐘 5 次登入（`AuthRateLimitFilter`）；**同一帳號 15 分鐘內錯 5 次鎖 15 分鐘**（`LoginAttemptService`，擋換 IP 猜同一帳號）。帳號不存在與密碼錯誤回同一句話，鎖定也不分是否為會員，無法藉此探測哪些 Email 已註冊 |
+| token 被偷走 | 登入有效期 1 天；每個 token 帶「憑證版本」，**會員可按「登出所有裝置」讓所有舊 token 立即失效**（`token_version`，JWT 本身無法撤銷，靠這個補上） |
+| 帳號刪除、權限調整後舊 token 還能用 | 每個請求都對資料庫確認帳號存在、版本相符、token 的 Email 與帳號一致，**角色以資料庫為準、不信 token 內容**（`SessionValidator`，15 秒小快取，變更時主動清除）；WebSocket 握手同樣檢查 |
+| 冒用別人的 Email | Google 登入只收 Google 驗證過的 Email；有人先用別人的 Email 帳密註冊，真正擁有者用 Google 登入時，**舊密碼作廢、舊 token 全部失效**，帳號回到擁有者手上；管理員 Email 禁止帳密註冊 |
+| 一般會員打後台 API | `@PreAuthorize("hasRole('STAFF')")` 由後端強制；嘗試會記成資安事件 |
+| 大量爬資料、狂打 API | 全站每 IP 每分鐘 120 次、寫入 30 次（`ApiRateLimitFilter`）；AI 顧問另有每日額度；訪客 IP 用 Cloudflare 的 `CF-Connecting-IP`（`X-Forwarded-For` 可偽造，實測過） |
+| XSS 偷 token、點擊劫持 | CSP 只允許本站與 Google 登入／字型的程式碼、`frame-ancestors 'none'`、HSTS、`nosniff`、`Referrer-Policy`、`Permissions-Policy`（`SecurityConfig`） |
+| 事後追查 | 登入成功／失敗／鎖定、權限不足、登出所有裝置、帳號收回都寫入操作紀錄（含來源 IP），後台可篩選「資安事件」 |
+| 資訊外洩 | 正式站關閉 Swagger API 文件；Actuator 只開 health/info；錯誤不回 stack trace；API 只回 DTO，不含密碼雜湊；CSV 匯出防公式注入、`Cache-Control: no-store` |
+
+其他基礎：BCrypt 密碼雜湊（8+ 字元含英數，前後端都驗）、Google ID Token 由後端驗簽章與 audience、`JWT_SECRET` 少於 32 字元直接拒絕啟動、所有密鑰走環境變數。
 
 ---
 
