@@ -1,207 +1,152 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import api from "../api/api";
-import RouteCard from "../components/RouteCard.vue";
+import EuropeRouteMap from "../components/EuropeRouteMap.vue";
 import AiAdvisorBox from "../components/AiAdvisorBox.vue";
 import AiAdvisorResults from "../components/AiAdvisorResults.vue";
+import RatingBadge from "../components/RatingBadge.vue";
 import { useAiAdvisor } from "../composables/useAiAdvisor";
+import { useCompareStore } from "../stores/compare";
+import { stopNames } from "../data/routeGeo";
 import { avatarColor } from "../data/content";
 
+// 首頁：一張歐洲地圖，每條行程是一條線。點線或點清單 → 右側顯示那條行程。
 const all = ref([]);
 const loading = ref(true);
-const featured = computed(() => all.value.filter((r) => r.featured).slice(0, 3));
-const popular = computed(() => all.value.filter((r) => !r.featured).slice(0, 6));
+const loadError = ref("");
+const selected = ref("");
+const hovered = ref("");
+const compare = useCompareStore();
 
-// 熱門目的地：用各國第一個行程的圖
-const destinations = computed(() => {
-  const seen = new Map();
-  for (const r of all.value) if (!seen.has(r.country)) seen.set(r.country, r);
-  return [...seen.values()].slice(0, 6);
-});
+const current = computed(() => all.value.find((r) => r.slug === selected.value) || null);
+const countries = computed(() => new Set(all.value.map((r) => r.country)).size);
+const twd = (n) => "NT$" + Number(n).toLocaleString("zh-TW");
 
-// 旅人怎麼說：全站最新的真實好評；還沒有任何評價時整區不顯示（不放假評價）
+function select(slug) {
+  selected.value = slug;
+  // 手機上地圖在上、行程資訊在下：選了之後把資訊捲進畫面
+  if (window.matchMedia("(max-width: 1023px)").matches) {
+    nextTick(() => document.getElementById("route-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  }
+}
+
+// 旅人怎麼說：全站最新的真實好評；還沒有任何評價時整區不顯示
 const testimonials = ref([]);
 
-// AI 行程顧問：問完自動捲到結果區（手機上結果在 Hero 下方，看不到會以為沒反應）
+// AI 行程顧問：問完自動捲到結果區
 const advisor = useAiAdvisor();
 watch(advisor.status, (s) => {
   if (s === "loading") nextTick(() => document.getElementById("ai-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
 });
 
-// 數字全部從真實行程資料算出來，後台新增行程會自動更新
-const wan = (n) => (n >= 10000 ? `${(n / 10000).toFixed(1).replace(/\.0$/, "")} 萬` : n.toLocaleString("zh-TW"));
-const stats = computed(() => {
-  const list = all.value;
-  if (!list.length) return [];
-  return [
-    { value: String(new Set(list.map((r) => r.country)).size), label: "個歐洲國家" },
-    { value: String(list.length), label: "條自助路線" },
-    { value: `${Math.min(...list.map((r) => r.days))}–${Math.max(...list.map((r) => r.days))} 天`, label: "行程長度" },
-    { value: wan(Math.min(...list.map((r) => r.price))), label: "每人最低起" },
-  ];
-});
-const steps = [
-  { icon: "🔍", title: "先挑路線", desc: "用主題、天數、預算篩，找到對你胃口的那條，而不是被推一堆。" },
-  { icon: "🗓️", title: "線上下訂", desc: "選好出發日和人數，當下就看到有沒有位，不用等回覆。" },
-  { icon: "💬", title: "有人接手", desc: "行前問簽證、旅途中臨時想改，找到的都是真人。" },
-];
-const whyUs = [
-  { icon: "✦", title: "路線是走過的", desc: "每條都是編輯自己去過、實際訂過住宿才放上來，不是搬型錄。" },
-  { icon: "🧭", title: "不塞好塞滿", desc: "每天留白給你自己亂逛，我們只把交通和門票這種麻煩事處理掉。" },
-  { icon: "🤝", title: "回你的是真人", desc: "從行前到旅途中都找得到人，不是罐頭訊息打發你。" },
-  { icon: "💎", title: "價格不藏東西", desc: "含什麼、不含什麼列在明處，機票簽證保險不會結帳才冒出來。" },
-];
-
-const email = ref("");
-const subscribed = ref(false);
-function subscribe() {
-  if (!email.value.includes("@")) return;
-  subscribed.value = true;
-}
-
 onMounted(async () => {
   api.getLatestReviews(3).then((list) => (testimonials.value = list)).catch(() => {});
-  try { all.value = await api.getRoutes({ sort: "featured" }); }
-  finally { loading.value = false; }
+  try {
+    all.value = await api.getRoutes({ sort: "featured" });
+    selected.value = all.value[0]?.slug || "";
+  } catch (e) {
+    loadError.value = e.message || "行程載入失敗";
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 
 <template>
-  <!-- Hero -->
-  <section class="relative overflow-hidden bg-ink-950 text-white">
-    <img src="https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=1600&q=80" alt="" fetchpriority="high"
-      @error="(e)=>(e.target.style.display='none')"
-      class="absolute inset-0 h-full w-full object-cover opacity-40" />
-    <div class="absolute inset-0 bg-gradient-to-br from-ink-950/90 via-ink-950/60 to-brand-950/70" />
-    <div class="container-x relative py-24 sm:py-32">
-      <div class="max-w-2xl animate-fade-up">
-        <span class="chip bg-white/15 text-white">✦ 2026 全新歐洲行程上線</span>
-        <h1 class="mt-5 text-4xl font-extrabold leading-tight sm:text-5xl lg:text-6xl">探索歐洲的<br /><span class="text-brand-400">下一段自助旅行</span></h1>
-        <p class="mt-5 max-w-xl text-lg text-ink-200">從巴黎鐵塔到挪威峽灣，十條走過的歐洲路線任你挑。交通、住宿、門票先幫你搞定，剩下的時間留給你自己玩。</p>
-        <div class="mt-8">
-          <AiAdvisorBox :advisor="advisor" />
+  <!-- 地圖 -->
+  <section class="bg-sea">
+    <div class="container-x pb-10 pt-8 sm:pt-12">
+      <h1 class="max-w-3xl font-serif text-3xl font-bold leading-snug text-navy sm:text-[2.6rem] sm:leading-tight">
+        {{ all.length ? `${all.length} 條自助路線` : "自助路線" }}，畫在同一張歐洲地圖上
+      </h1>
+      <p class="mt-3 max-w-2xl text-base text-sea-deep sm:text-lg">
+        從里斯本的電車到卑爾根的峽灣，共 {{ countries || "數" }} 個國家。點地圖上的線，或從清單挑一條，看它怎麼走。
+      </p>
+
+      <!-- 桌機：左欄地圖＋AI 顧問、右欄行程資訊與清單；手機：地圖 → 行程資訊 → 清單 → AI 顧問 -->
+      <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div class="overflow-hidden rounded-md bg-sea ring-1 ring-sea-line lg:col-start-1 lg:row-start-1">
+          <div v-if="loading" class="aspect-[1000/860] animate-pulse bg-sea" aria-label="地圖載入中" />
+          <p v-else-if="loadError" class="grid aspect-[1000/860] place-items-center p-6 text-center text-sea-deep">{{ loadError }}</p>
+          <EuropeRouteMap v-else :routes="all" :selected="selected" :highlighted="hovered"
+            @select="select" @hover="(s) => (hovered = s)" />
         </div>
-        <div class="mt-5 flex flex-wrap gap-3">
-          <RouterLink to="/tours" class="btn-primary px-7 py-3 text-base">開始探索 →</RouterLink>
-          <RouterLink to="/register" class="btn px-7 py-3 text-base bg-white/10 text-white hover:bg-white/20">免費加入會員</RouterLink>
+
+        <aside class="lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <!-- 選中的行程 -->
+          <div id="route-panel" class="scroll-mt-20 overflow-hidden rounded-md bg-white ring-1 ring-sea-line" aria-live="polite">
+            <template v-if="current">
+              <img :src="current.imageUrl" :alt="current.name" class="aspect-[16/9] w-full bg-sea object-cover"
+                @error="(e) => (e.target.style.visibility = 'hidden')" />
+              <div class="p-5">
+                <p class="text-sm text-sea-deep">{{ current.country }}</p>
+                <h2 class="mt-0.5 font-serif text-xl font-bold leading-snug text-navy">{{ current.name }}</h2>
+                <p class="mt-2 text-sm leading-relaxed text-ink-600">{{ stopNames(current) }}</p>
+                <dl class="mt-4 grid grid-cols-3 border-y border-ink-100 py-3 text-sm">
+                  <div><dt class="text-xs text-ink-400">天數</dt><dd class="mt-0.5 font-semibold text-navy">{{ current.days }} 天</dd></div>
+                  <div><dt class="text-xs text-ink-400">每人</dt><dd class="mt-0.5 font-semibold text-navy">{{ twd(current.price) }}</dd></div>
+                  <div><dt class="text-xs text-ink-400">評價</dt><dd class="mt-0.5"><RatingBadge :rating="current.rating" :reviews="current.reviews" /></dd></div>
+                </dl>
+                <div class="mt-4 flex gap-2">
+                  <RouterLink :to="`/tours/${current.slug}`" class="btn-primary flex-1 justify-center">看完整行程</RouterLink>
+                  <button type="button" @click="compare.toggle(current)" :aria-pressed="compare.has(current.slug)"
+                    class="rounded-md px-4 text-sm font-semibold ring-1 transition"
+                    :class="compare.has(current.slug) ? 'bg-navy text-white ring-navy' : 'text-navy ring-sea-line hover:bg-sea/50'">
+                    {{ compare.has(current.slug) ? "比較中" : "加入比較" }}
+                  </button>
+                </div>
+              </div>
+            </template>
+            <div v-else class="h-72 animate-pulse bg-white" />
+          </div>
+
+          <!-- 全部路線 -->
+          <nav class="mt-4 rounded-md bg-white ring-1 ring-sea-line" aria-label="全部路線">
+            <ul class="divide-y divide-ink-100 lg:max-h-[22rem] lg:overflow-y-auto">
+              <li v-for="r in all" :key="r.slug">
+                <button type="button" @click="select(r.slug)" @pointerenter="hovered = r.slug" @pointerleave="hovered = ''"
+                  @focus="hovered = r.slug" @blur="hovered = ''" :aria-current="r.slug === selected ? 'true' : null"
+                  :class="['flex w-full items-baseline gap-3 border-l-4 px-4 py-2.5 text-left text-sm transition',
+                           r.slug === selected ? 'border-brand-600 bg-brand-50/60' : 'border-transparent hover:bg-sea/40']">
+                  <span class="min-w-0 flex-1 truncate font-medium text-navy">{{ r.name }}</span>
+                  <span class="shrink-0 text-xs text-ink-500">{{ r.days }} 天</span>
+                </button>
+              </li>
+            </ul>
+          </nav>
+          <RouterLink to="/tours" class="mt-3 inline-block text-sm font-semibold text-sea-deep underline-offset-4 hover:underline">
+            用天數、預算篩選全部行程
+          </RouterLink>
+        </aside>
+
+        <!-- AI 行程顧問 -->
+        <div class="rounded-md bg-white p-5 ring-1 ring-sea-line lg:col-start-1 lg:row-start-2">
+          <h2 class="font-serif text-xl font-bold text-navy">不知道選哪一條？</h2>
+          <p class="mt-1 text-sm leading-relaxed text-ink-600">用一句話說說你想怎麼玩。AI 只會從這些路線裡挑，價格、天數都照實際行程。</p>
+          <div class="mt-4"><AiAdvisorBox :advisor="advisor" /></div>
         </div>
       </div>
-      <dl class="mt-16 grid min-h-[4.5rem] max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
-        <div v-for="s in stats" :key="s.label"><dt class="text-3xl font-extrabold text-brand-400">{{ s.value }}</dt><dd class="mt-1 text-sm text-ink-300">{{ s.label }}</dd></div>
-      </dl>
     </div>
   </section>
 
   <AiAdvisorResults :advisor="advisor" />
 
-  <!-- 熱門目的地 -->
-  <section class="container-x py-16 sm:py-20">
-    <h2 class="text-2xl font-extrabold sm:text-3xl">熱門目的地</h2>
-    <p class="mt-2 text-ink-500">挑一個國家，開始你的歐洲冒險。</p>
-    <Transition name="fade" mode="out-in">
-      <div v-if="loading" key="skeleton" class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <div v-for="i in 6" :key="i" class="aspect-[3/4] animate-pulse rounded-2xl bg-ink-100" />
-      </div>
-      <div v-else key="data" class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <RouterLink v-for="d in destinations" :key="d.country" :to="`/tours`"
-          class="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700">
-          <img :src="d.imageUrl" :alt="d.country" loading="lazy" decoding="async"
-            @error="(e)=>(e.target.style.display='none')"
-            class="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
-          <div class="absolute inset-0 bg-gradient-to-t from-ink-950/80 to-transparent" />
-          <span class="absolute inset-x-0 bottom-3 text-center text-lg font-bold text-white">{{ d.country }}</span>
-        </RouterLink>
-      </div>
-    </Transition>
-  </section>
-
-  <!-- 精選行程 -->
-  <section class="bg-ink-50 py-16 sm:py-20">
-    <div class="container-x">
-      <div class="flex items-end justify-between">
-        <div><h2 class="text-2xl font-extrabold sm:text-3xl">本月精選行程</h2><p class="mt-2 text-ink-500">編輯團隊嚴選，最受旅人喜愛的歐洲路線。</p></div>
-        <RouterLink to="/tours" class="hidden text-sm font-semibold text-brand-700 hover:underline sm:block">查看全部 →</RouterLink>
-      </div>
-      <Transition name="fade" mode="out-in">
-        <div v-if="loading" key="skeleton" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div v-for="i in 3" :key="i" class="card overflow-hidden">
-            <div class="aspect-[4/3] animate-pulse bg-ink-100" />
-            <div class="space-y-2 p-4"><div class="h-4 w-2/3 animate-pulse rounded bg-ink-100" /><div class="h-3 w-full animate-pulse rounded bg-ink-100" /></div>
-          </div>
-        </div>
-        <div v-else key="data" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"><RouteCard v-for="r in featured" :key="r.id" :route="r" /></div>
-      </Transition>
-    </div>
-  </section>
-
-  <!-- 為什麼選我們 -->
-  <section class="container-x py-16 sm:py-20">
-    <h2 class="text-center text-2xl font-extrabold sm:text-3xl">為什麼選擇我們</h2>
-    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      <div v-for="w in whyUs" :key="w.title" class="card p-6 text-center">
-        <div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-2xl text-brand-600">{{ w.icon }}</div>
-        <h3 class="mt-3 text-lg font-bold">{{ w.title }}</h3>
-        <p class="mt-1.5 text-sm text-ink-500">{{ w.desc }}</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- 三步驟 -->
-  <section class="bg-ink-50 py-16 sm:py-20">
-    <div class="container-x">
-      <h2 class="text-center text-2xl font-extrabold sm:text-3xl">三步驟，輕鬆出發</h2>
-      <div class="mt-10 grid gap-6 sm:grid-cols-3">
-        <div v-for="(s, i) in steps" :key="s.title" class="card p-6"><div class="text-3xl">{{ s.icon }}</div><h3 class="mt-3 text-lg font-bold">{{ i + 1 }}. {{ s.title }}</h3><p class="mt-1.5 text-sm text-ink-500">{{ s.desc }}</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 熱門路線 -->
-  <section class="container-x py-16 sm:py-20">
-    <h2 class="text-2xl font-extrabold sm:text-3xl">熱門路線</h2>
-    <Transition name="fade" mode="out-in">
-      <div v-if="loading" key="skeleton" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <div v-for="i in 6" :key="i" class="card overflow-hidden">
-          <div class="aspect-[4/3] animate-pulse bg-ink-100" />
-          <div class="space-y-2 p-4"><div class="h-4 w-2/3 animate-pulse rounded bg-ink-100" /><div class="h-3 w-full animate-pulse rounded bg-ink-100" /></div>
-        </div>
-      </div>
-      <div v-else key="data" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"><RouteCard v-for="r in popular" :key="r.id" :route="r" /></div>
-    </Transition>
-    <div class="mt-10 text-center"><RouterLink to="/tours" class="btn-primary px-7 py-3">瀏覽所有行程</RouterLink></div>
-  </section>
-
-  <!-- 旅人評價（真實評價，沒有就不顯示） -->
-  <section v-if="testimonials.length" class="bg-ink-50 py-16 sm:py-20">
-    <div class="container-x">
-      <h2 class="text-center text-2xl font-extrabold sm:text-3xl">旅人怎麼說</h2>
-      <p class="mt-2 text-center text-sm text-ink-500">來自完成付款的旅客</p>
-      <div class="mt-10 grid gap-6 sm:grid-cols-3">
-        <div v-for="t in testimonials" :key="t.id" class="card flex flex-col p-6">
-          <div class="flex items-center gap-1 text-amber-500" :aria-label="`${t.rating} 星`"><span v-for="s in 5" :key="s" aria-hidden="true">{{ s <= t.rating ? '★' : '☆' }}</span></div>
-          <p class="mt-3 line-clamp-5 flex-1 break-words text-ink-600">「{{ t.content }}」</p>
-          <div class="mt-4 flex items-center gap-3">
-            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold text-white" :class="avatarColor(t.authorName)">{{ t.authorName.slice(0, 1) }}</span>
-            <div class="min-w-0">
-              <p class="text-sm font-semibold">{{ t.authorName }}</p>
-              <RouterLink :to="`/tours/${t.routeSlug}`" class="block truncate text-xs text-brand-700 hover:underline">{{ t.routeName }}</RouterLink>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 電子報訂閱 + CTA -->
-  <section class="container-x py-16 sm:py-20">
-    <div class="overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 px-8 py-14 text-center text-white">
-      <h2 class="text-2xl font-extrabold sm:text-3xl">訂閱電子報，搶先收到歐洲行程優惠</h2>
-      <p class="mx-auto mt-3 max-w-xl text-brand-50">每月精選路線、季節限定行程與會員專屬折扣，直接送到你信箱。</p>
-      <form v-if="!subscribed" @submit.prevent="subscribe" class="mx-auto mt-6 flex max-w-md flex-col gap-3 sm:flex-row">
-        <input v-model="email" type="email" required placeholder="輸入你的 Email" class="input flex-1 !text-ink-900" />
-        <button class="btn bg-white px-6 text-brand-700 hover:bg-brand-50">訂閱</button>
-      </form>
-      <p v-else class="mx-auto mt-6 max-w-md rounded-xl bg-white/15 px-4 py-3">✓ 訂閱成功！我們會把最新歐洲行程寄給你 🎉</p>
+  <!-- 旅人怎麼說（真實評價，沒有就不顯示） -->
+  <section v-if="testimonials.length" class="container-x py-14">
+    <h2 class="font-serif text-2xl font-bold text-navy">旅人怎麼說</h2>
+    <p class="mt-1 text-sm text-ink-500">來自完成付款的旅客</p>
+    <div class="mt-8 grid gap-x-10 gap-y-8 md:grid-cols-3">
+      <figure v-for="t in testimonials" :key="t.id" class="border-l-2 border-sea-line pl-5">
+        <div class="text-amber-500" :aria-label="`${t.rating} 星`"><span v-for="s in 5" :key="s" aria-hidden="true">{{ s <= t.rating ? '★' : '☆' }}</span></div>
+        <blockquote class="mt-2 line-clamp-5 break-words leading-relaxed text-ink-700">{{ t.content }}</blockquote>
+        <figcaption class="mt-3 flex items-center gap-3 text-sm">
+          <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold text-white" :class="avatarColor(t.authorName)">{{ t.authorName.slice(0, 1) }}</span>
+          <span class="min-w-0">
+            <span class="font-semibold text-navy">{{ t.authorName }}</span>
+            <RouterLink :to="`/tours/${t.routeSlug}`" class="block truncate text-xs text-sea-deep hover:underline">{{ t.routeName }}</RouterLink>
+          </span>
+        </figcaption>
+      </figure>
     </div>
   </section>
 </template>

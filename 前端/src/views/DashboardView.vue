@@ -87,7 +87,7 @@ async function saveProfile() {
 }
 
 async function deleteMyAccount() {
-  if (!confirm("⚠️ 確定要刪除你的帳號嗎？\n\n客服訊息會一併刪除、無法復原。若尚有未取消的訂單，需先取消才能刪除帳號。")) return;
+  if (!confirm("確定要刪除你的帳號嗎？\n\n客服訊息會一併刪除、無法復原。若尚有未取消的訂單，需先取消才能刪除帳號。")) return;
   if (!confirm("再次確認：真的要刪除帳號？")) return;
   deleteErr.value = ""; deleteBusy.value = true;
   try {
@@ -123,8 +123,8 @@ async function deleteMyAccount() {
         <nav class="mt-5 space-y-1">
           <button v-for="t in TABS" :key="t.v" @click="tab = t.v"
             :class="['w-full rounded-xl px-4 py-2.5 text-left text-sm font-medium transition', tab === t.v ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-ink-50']">{{ t.l }}</button>
-          <RouterLink to="/chat" class="block w-full rounded-xl px-4 py-2.5 text-left text-sm font-medium text-ink-600 hover:bg-ink-50">💬 聯絡客服</RouterLink>
-          <RouterLink v-if="auth.isStaff" to="/admin" class="block w-full rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-brand-700 hover:bg-brand-50">🛠 進入後台管理</RouterLink>
+          <RouterLink to="/chat" class="block w-full rounded-xl px-4 py-2.5 text-left text-sm font-medium text-ink-600 hover:bg-ink-50">聯絡客服</RouterLink>
+          <RouterLink v-if="auth.isStaff" to="/admin" class="block w-full rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-brand-700 hover:bg-brand-50">進入後台管理</RouterLink>
         </nav>
       </div>
 
@@ -135,7 +135,7 @@ async function deleteMyAccount() {
           <h2 class="text-lg font-bold">我的訂單</h2>
           <p v-if="busy" class="mt-6 text-ink-400">載入訂單中…</p>
           <div v-else-if="bookings.length === 0" class="card mt-4 p-10 text-center">
-            <p class="text-4xl">🧳</p><p class="mt-3 text-ink-500">你還沒有任何訂單。</p>
+            <p class="text-ink-500">你還沒有任何訂單。</p>
             <RouterLink to="/tours" class="btn-primary mt-4">開始探索行程</RouterLink>
           </div>
           <div v-else class="mt-4 space-y-4">
@@ -171,7 +171,7 @@ async function deleteMyAccount() {
         <div v-else-if="tab === 'favorites'">
           <h2 class="text-lg font-bold">我的收藏</h2>
           <div v-if="favoriteRoutes.length === 0" class="card mt-4 p-10 text-center">
-            <p class="text-4xl">♡</p><p class="mt-3 text-ink-500">還沒有收藏任何行程，去逛逛吧！</p>
+            <p class="text-ink-500">還沒有收藏任何行程，去逛逛吧！</p>
             <RouterLink to="/tours" class="btn-primary mt-4">探索行程</RouterLink>
           </div>
           <div v-else class="mt-4 grid gap-6 sm:grid-cols-2"><RouteCard v-for="r in favoriteRoutes" :key="r.id" :route="r" /></div>
@@ -190,7 +190,7 @@ async function deleteMyAccount() {
 
           <!-- 帳號安全 -->
           <div class="card mt-6 max-w-lg p-6">
-            <h3 class="text-base font-bold">🔒 帳號安全</h3>
+            <h3 class="text-base font-bold">帳號安全</h3>
             <p class="mt-2 text-sm text-ink-600">
               覺得帳號可能被別人用了（例如在別人的電腦登入後忘了登出）？按下面的按鈕，所有裝置上的登入都會立刻失效。
             </p>
@@ -206,7 +206,7 @@ async function deleteMyAccount() {
 
           <!-- 危險區：刪除帳號 -->
           <div class="card mt-6 max-w-lg border border-red-200 bg-red-50/40 p-6">
-            <h3 class="text-base font-bold text-red-700">⚠️ 危險區</h3>
+            <h3 class="text-base font-bold text-red-700">刪除帳號</h3>
             <p class="mt-2 text-sm text-ink-600">
               刪除帳號後，你的所有訂單與客服訊息會一併消失，無法復原。
             </p>

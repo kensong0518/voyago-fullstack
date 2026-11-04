@@ -98,8 +98,7 @@ async function removeMine() {
         </ul>
       </div>
       <div v-else class="mt-4 rounded-2xl border border-dashed border-ink-200 px-5 py-8 text-center">
-        <p class="text-3xl">✍️</p>
-        <p class="mt-2 font-semibold text-ink-700">還沒有人評價這個行程</p>
+                <p class="mt-2 font-semibold text-ink-700">還沒有人評價這個行程</p>
         <p class="mt-1 text-sm text-ink-500">評價只開放給完成付款的旅客，每一則都是真的。</p>
       </div>
 
@@ -129,7 +128,7 @@ async function removeMine() {
             </div>
           </form>
           <div v-else class="flex flex-wrap items-center gap-3">
-            <button type="button" @click="startEdit" class="btn-primary px-5 py-2 text-sm">{{ hasMine ? "修改我的評價" : "✍️ 寫評價" }}</button>
+            <button type="button" @click="startEdit" class="btn-primary px-5 py-2 text-sm">{{ hasMine ? "修改我的評價" : "寫評價" }}</button>
             <span v-if="hasMine" class="text-sm text-ink-500">你給了 {{ eligibility.myRating }} 星</span>
           </div>
         </template>
