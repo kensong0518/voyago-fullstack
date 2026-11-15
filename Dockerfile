@@ -18,7 +18,7 @@ RUN npm run build
 # ============ 後端 build stage ============
 # 把 pom.xml 先 COPY，讓 Maven 依賴成獨立層；
 # 之後只改 src 不會重抓所有套件 → 鏡像 rebuild 從 ~2 min 縮到 ~20s
-FROM maven:3.9.9-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /app
 
 COPY 後端/pom.xml ./
