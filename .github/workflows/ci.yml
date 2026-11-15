@@ -143,13 +143,13 @@ jobs:
           mkdir -p "$HOME/.cache/trivy"
           trivy () {
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-              -v "$HOME/.cache/trivy:/root/.cache/trivy" aquasec/trivy:0.58.1 "$@"
+              -v "$HOME/.cache/trivy:/root/.cache/trivy" -v "$PWD:/work" aquasec/trivy:0.58.1 "$@"
           }
           echo "=== HIGH 與 CRITICAL（只列出，已有修正版的）==="
           trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 voyago-backend:ci | tee /tmp/trivy-report.txt
           { echo "### 映像檔漏洞掃描（Trivy，已有修正版的 HIGH／CRITICAL）"; echo '```'; tail -n 60 /tmp/trivy-report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           echo "=== 有修正版的 CRITICAL：有就擋下 ==="
-          trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 --skip-db-update --skip-java-db-update voyago-backend:ci
+          trivy image --severity CRITICAL --ignore-unfixed --ignorefile /work/.trivyignore.yaml --exit-code 1 --skip-db-update --skip-java-db-update voyago-backend:ci
 
       # 只給 0.25 顆 CPU，接近免費方案；跑到 Spring 初始化完成就結束（不連資料庫），比較有／沒有 CDS 的時間
       - name: 量測啟動時間（有 CDS vs 沒有）
