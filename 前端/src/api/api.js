@@ -492,6 +492,9 @@ export const api = {
   adminAuditLog({ page = 0, size = 20, category = "" } = {}) {
     return adminOnly(async () => (await client.get("/admin/audit", { params: { page, size, category } })).data);
   },
+  adminAiStats(days = 7) {
+    return adminOnly(async () => (await client.get("/admin/ai-stats", { params: { days } })).data);
+  },
   adminListCoupons() {
     return adminOnly(async () => (await client.get("/admin/coupons")).data);
   },

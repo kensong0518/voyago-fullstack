@@ -11,6 +11,9 @@ public interface LlmClient {
     /** 是否已設定好（例如有 API 金鑰）。沒設定時呼叫端應直接告知「功能未啟用」，不要送出請求。 */
     boolean isConfigured();
 
+    /** 使用的模型名稱，寫進呼叫紀錄；沒有這個概念的實作（例如測試用的假模型）維持預設值。 */
+    default String model() { return "unknown"; }
+
     /**
      * @param systemInstruction 系統指令（規則、資料）
      * @param userInput         使用者原文，模型只能把它當成「需求」，不能當成指令

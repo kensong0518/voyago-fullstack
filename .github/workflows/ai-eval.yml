@@ -1,0 +1,52 @@
+name: AI 評估（手動觸發）
+
+# 用真的 Gemini 跑 30 題評估（後端/src/test/resources/ai-eval/），算出通過率、失敗率、延遲與幻覺次數。
+# 會消耗 Gemini 免費額度，所以只手動觸發：改完提示詞或換模型後，到 Actions 頁面按 Run workflow。
+#
+# 需要設定 secret：GEMINI_API_KEY（GitHub → Settings → Secrets and variables → Actions）
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Gemini 模型（留空＝預設）"
+        required: false
+      min_pass:
+        description: "最低通過率（0~1）"
+        required: false
+        default: "0.8"
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: 後端
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: 跑評估
+        env:
+          AI_EVAL: "1"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ github.event.inputs.model }}
+          AI_EVAL_MIN_PASS: ${{ github.event.inputs.min_pass }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then echo "::error::尚未設定 secret GEMINI_API_KEY"; exit 1; fi
+          mvn -B -ntp -Dtest=AdvisorLiveEvalTest -Dsurefire.failIfNoSpecifiedTests=false test
+      - name: 上傳報告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-eval-report
+          path: 後端/target/ai-eval
+          if-no-files-found: ignore
+          retention-days: 30

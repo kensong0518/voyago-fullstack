@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.2.5</version>
+    <version>3.2.12</version>   <!-- 3.2 系列最後一版：同一條線的安全修補，不是大版本升級 -->
     <relativePath/>
   </parent>
 
@@ -20,6 +20,9 @@
   <properties>
     <java.version>17</java.version>
     <jjwt.version>0.11.5</jjwt.version>
+    <!-- Trivy 掃出內嵌 Tomcat 10.1.20 有 CRITICAL（CVE-2025-24813，Boot 3.2.12 帶的 10.1.34 仍未修），
+         Tomcat 10.1.x 內的修補版相容，所以只覆寫這一個版本。 -->
+    <tomcat.version>10.1.62</tomcat.version>
   </properties>
 
   <dependencies>
@@ -142,6 +145,23 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!-- 測試覆蓋率：mvn verify 之後在 target/site/jacoco/（CI 會把數字寫進執行摘要並上傳報告） -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.12</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals><goal>prepare-agent</goal></goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>verify</phase>
+            <goals><goal>report</goal></goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

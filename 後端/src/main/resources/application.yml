@@ -88,6 +88,9 @@ springdoc:
 
 # 只暴露 health 與 info，不洩漏 env / heapdump / 其他敏感端點
 management:
+  info:
+    env:
+      enabled: true      # /actuator/info 顯示 info.* 設定，部署後用來確認線上跑的是哪一個 commit
   endpoints:
     web:
       exposure:
@@ -103,3 +106,8 @@ management:
     # 資料庫的健康檢查保留：連不上 DB 才是真的不能服務。
     mail:
       enabled: false
+
+# Render 會把部署的 commit 放在 RENDER_GIT_COMMIT；CI 的部署流程靠它確認新版真的上線了
+info:
+  app:
+    commit: ${RENDER_GIT_COMMIT:unknown}

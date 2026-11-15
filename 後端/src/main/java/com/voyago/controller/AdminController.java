@@ -10,6 +10,7 @@ import com.voyago.service.AdminManageService;
 import com.voyago.service.AdminStatsService;
 import com.voyago.service.AdminCouponService;
 import com.voyago.service.AdminReportService;
+import com.voyago.service.AiLogService;
 import com.voyago.service.AuditService;
 import com.voyago.service.CsvExportService;
 import com.voyago.dto.AdminReportDto;
@@ -53,15 +54,18 @@ public class AdminController {
     private final AdminReportService reports;
     private final CsvExportService csv;
     private final AuditService audit;
+    private final AiLogService aiLog;
     private final AdminCouponService coupons;
 
     public AdminController(AdminStatsService stats, AdminManageService manage, AdminReportService reports,
-                           CsvExportService csv, AuditService audit, AdminCouponService coupons) {
+                           CsvExportService csv, AuditService audit, AdminCouponService coupons,
+                           AiLogService aiLog) {
         this.stats = stats;
         this.manage = manage;
         this.reports = reports;
         this.csv = csv;
         this.audit = audit;
+        this.aiLog = aiLog;
         this.coupons = coupons;
     }
 
@@ -142,6 +146,13 @@ public class AdminController {
                                             @RequestParam(defaultValue = "20") int size,
                                             @RequestParam(defaultValue = "") String category) {
         return audit.list(page, size, category);
+    }
+
+    // ---------- AI 使用狀況 ----------
+
+    @GetMapping("/ai-stats")
+    public com.voyago.dto.AiStatsDto aiStats(@RequestParam(defaultValue = "7") int days) {
+        return aiLog.stats(days);
     }
 
     // ---------- 優惠碼 ----------

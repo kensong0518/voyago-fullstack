@@ -1,6 +1,7 @@
 <script setup>
 // AI 行程顧問輸入框。狀態由 useAiAdvisor 管理，結果顯示在 AiAdvisorResults。
 const props = defineProps({ advisor: { type: Object, required: true } });
+const query = props.advisor.query;   // 輸入框綁定這個 ref（跟 advisor 內部是同一個），不直接改 prop 物件
 
 const EXAMPLES = [
   "兩個人、預算 15 萬，想看雪景",
@@ -17,7 +18,7 @@ function submit() {
   <div>
     <form class="flex flex-col gap-2 sm:flex-row" @submit.prevent="submit">
       <label for="ai-query" class="sr-only">AI 行程顧問：描述你想要的旅程</label>
-      <input id="ai-query" v-model="advisor.query.value" maxlength="300"
+      <input id="ai-query" v-model="query" maxlength="300"
         :disabled="advisor.status.value === 'disabled' || advisor.status.value === 'checking'"
         placeholder="例如：三個人、十天內、想看極光"
         class="input min-w-0 flex-1 py-3 text-base disabled:bg-ink-50" />

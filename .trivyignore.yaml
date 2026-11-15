@@ -1,0 +1,13 @@
+# Trivy 已知且接受的漏洞。每一筆都要寫理由與到期日，到期後會重新擋下，逼自己回來處理。
+vulnerabilities:
+  - id: CVE-2026-47884
+    statement: >
+      spring-webmvc：Trivy 只列出 Spring Framework 7.x 的修正版，6.1 沒有可升級的版本；
+      升到 Spring Boot 4 / Spring Framework 7 是大版本遷移，另開工作處理。
+      （2026-11-15 登記；到期前要確認是否已有 6.x 修補或完成遷移）
+    expired_at: 2027-02-15
+  - id: CVE-2026-22732
+    statement: >
+      spring-security-web：修正版只在 6.5.9 / 7.0.4，6.2 線沒有修補；6.5 需要 Spring Framework 6.2、
+      也就是 Spring Boot 3.5 的遷移，另開工作處理（2026-11-15 登記）。
+    expired_at: 2027-02-15

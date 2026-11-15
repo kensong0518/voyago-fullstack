@@ -8,6 +8,7 @@ import AdminMembersPanel from "../components/admin/AdminMembersPanel.vue";
 import AdminInsightsPanel from "../components/admin/AdminInsightsPanel.vue";
 import AdminCouponsPanel from "../components/admin/AdminCouponsPanel.vue";
 import AdminAuditPanel from "../components/admin/AdminAuditPanel.vue";
+import AdminAiPanel from "../components/admin/AdminAiPanel.vue";
 
 const auth = useAuthStore();
 
@@ -17,6 +18,7 @@ const TABS = [
   { v: "bookings", l: "🧾 訂單管理" },
   { v: "members", l: "👥 會員管理" },
   { v: "coupons", l: "🏷️ 優惠碼" },
+  { v: "ai", l: "🤖 AI 使用狀況" },
   { v: "audit", l: "📝 操作紀錄" },
 ];
 const tab = ref("insights");
@@ -53,6 +55,7 @@ const stats = ref(null);
         <AdminBookingsPanel v-else-if="tab === 'bookings'" @changed="stats?.reload()" />
         <AdminMembersPanel v-else-if="tab === 'members'" />
         <AdminCouponsPanel v-else-if="tab === 'coupons'" />
+        <AdminAiPanel v-else-if="tab === 'ai'" />
         <AdminAuditPanel v-else-if="tab === 'audit'" />
       </KeepAlive>
     </div>

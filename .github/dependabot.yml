@@ -1,0 +1,34 @@
+# 每週檢查一次相依套件有沒有新版或安全更新，自動開 PR（小版本與修補版合併成一個 PR，避免被洗版）。
+# 這些 PR 一樣要通過 CI 才能合併，所以升級壞了會在合併前就被擋下。
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /後端
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      spring-boot:
+        patterns: ["org.springframework.boot*", "org.springframework*"]
+        update-types: [minor, patch]
+      maven-minor-patch:
+        update-types: [minor, patch]
+    # Spring Boot 的大版本要自己看遷移指南，不自動開 PR
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    directory: /前端
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly, day: monday }
