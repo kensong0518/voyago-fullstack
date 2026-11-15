@@ -24,10 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: TEMP 查 Tomcat 版本
-        run: |
-          curl -fsS https://repo.maven.apache.org/maven2/org/apache/tomcat/embed/tomcat-embed-core/maven-metadata.xml | grep -o '<version>10\.1\.[0-9]*</version>' | tail -12
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
