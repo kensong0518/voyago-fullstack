@@ -38,7 +38,7 @@ RUN mkdir -p /app/exploded && cd /app/exploded && jar -xf /app/app.jar \
 
 # ============ run stage ============
 # Alpine JRE 比 -jre 小約 60%；以 non-root user 跑，符合容器最佳實務
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 
 # 非 root 使用者（UID 10001）；建 CDS 存檔要寫 /app，所以試跑在切換使用者之前做
