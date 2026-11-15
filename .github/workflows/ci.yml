@@ -57,7 +57,7 @@ jobs:
 
       - name: 上傳測試報告
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-test-reports
           path: |
@@ -68,7 +68,7 @@ jobs:
 
       - name: 上傳 jar
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: voyago-backend-jar
           path: 後端/target/*.jar
@@ -105,7 +105,7 @@ jobs:
 
       - name: 上傳 dist 產物
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: voyago-frontend-dist
           path: 前端/dist
