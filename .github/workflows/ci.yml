@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, master]
 
+permissions:
+  contents: read
+
 # 同一 PR 連續 push 時，自動取消前一次未完成的 run（節省 Actions 額度）
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -31,12 +34,26 @@ jobs:
       - name: Maven verify（含單元測試）
         run: mvn -B -ntp verify
 
+      - name: 測試覆蓋率（JaCoCo）
+        if: always()
+        run: |
+          csv=target/site/jacoco/jacoco.csv
+          if [ -f "$csv" ]; then
+            read -r lm lc bm bc < <(awk -F, 'NR>1 {lm+=$8; lc+=$9; bm+=$6; bc+=$7} END {print lm, lc, bm, bc}' "$csv")
+            line=$(awk -v m="$lm" -v c="$lc" 'BEGIN {printf "%.1f", c*100/(m+c)}')
+            branch=$(awk -v m="$bm" -v c="$bc" 'BEGIN {printf "%.1f", c*100/(m+c)}')
+            echo "行覆蓋率 ${line}%　分支覆蓋率 ${branch}%"
+            { echo "### 後端測試覆蓋率"; echo "| | 覆蓋率 |"; echo "|---|---|"; echo "| 行 | ${line}% |"; echo "| 分支 | ${branch}% |"; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: 上傳測試報告
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-reports
-          path: 後端/target/surefire-reports
+          path: |
+            後端/target/surefire-reports
+            後端/target/site/jacoco
           if-no-files-found: ignore
           retention-days: 7
 
@@ -67,6 +84,12 @@ jobs:
 
       - name: 安裝套件（npm ci，確保 lockfile 一致）
         run: npm ci
+
+      - name: 程式碼檢查（ESLint）
+        run: npm run lint
+
+      - name: 單元測試（Vitest）
+        run: npm test
 
       - name: 建置
         run: npm run build
@@ -111,6 +134,29 @@ jobs:
             grep -rlq 484615494439 static/assets && echo "Google client id baked into bundle: OK"
             ls -la /app/app.jsa
           '
+
+      # 映像檔的作業系統套件與 Java 相依套件有沒有已知漏洞。
+      # 只擋「已經有修正版、而且是 CRITICAL」的；HIGH 與沒有修正版的只列出來，不擋合併。
+      - name: 映像檔漏洞掃描（Trivy）— 報告
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: voyago-backend:ci
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: 映像檔漏洞掃描（Trivy）— 有修正版的 CRITICAL 一律擋下
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: voyago-backend:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+        env:
+          TRIVY_SKIP_DB_UPDATE: "true"        # 上一步已經下載過漏洞資料庫
+          TRIVY_SKIP_JAVA_DB_UPDATE: "true"
 
       # 只給 0.25 顆 CPU，接近免費方案；跑到 Spring 初始化完成就結束（不連資料庫），比較有／沒有 CDS 的時間
       - name: 量測啟動時間（有 CDS vs 沒有）

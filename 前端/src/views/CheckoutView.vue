@@ -1,10 +1,9 @@
 <script setup>
 import { onMounted, ref, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import api from "../api/api";
 
 const route = useRoute();
-const router = useRouter();
 
 const loading = ref(true);
 const booking = ref(null);

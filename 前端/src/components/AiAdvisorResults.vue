@@ -2,7 +2,7 @@
 import RouteCard from "./RouteCard.vue";
 
 // AI 推薦結果：卡片資料一律來自資料庫（價格、天數不採用 AI 寫的數字），AI 只提供推薦理由。
-const props = defineProps({ advisor: { type: Object, required: true } });
+defineProps({ advisor: { type: Object, required: true } });
 </script>
 
 <template>

@@ -66,6 +66,11 @@ public class GeminiClient implements LlmClient {
     }
 
     @Override
+    public String model() {
+        return model;
+    }
+
+    @Override
     public String generateJson(String systemInstruction, String userInput, Map<String, Object> responseSchema) {
         if (!isConfigured()) throw new AiException(AiException.Reason.NOT_CONFIGURED, "GEMINI_API_KEY 未設定");
 

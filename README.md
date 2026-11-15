@@ -331,6 +331,28 @@ cd 後端 && mvn test    # JUnit 5 + Mockito
 
 CI 走 GitHub Actions：每次 push / PR 自動跑後端 `mvn verify`、前端 `npm ci && npm run build`，再用跟 Render **完全相同的 Dockerfile 與 build context** 建一次後端映像，部署設定壞掉會在 CI 先被抓到。同分支重複觸發會自動取消舊任務。
 
+### CI/CD 流程
+
+| 時機 | 工作 | 擋下合併的條件 |
+| --- | --- | --- |
+| 每個 PR / push | 後端 `mvn verify`（單元與整合測試、JaCoCo 覆蓋率） | 任一測試失敗 |
+| 同上 | 前端 `npm run lint`（ESLint）、`npm test`（Vitest）、`npm run build` | 有錯誤、測試失敗、建置失敗 |
+| 同上 | 以 Render 相同的 Dockerfile 建映像、檢查 CDS 存檔、量測冷啟動時間 | 建置失敗 |
+| 同上 | Trivy 映像檔漏洞掃描 | 有「已有修正版」的 CRITICAL 漏洞 |
+| main 的 CI 通過後 | `deploy.yml`：呼叫 Render Deploy Hook 部署該 commit，等 `/actuator/info` 的 `app.commit` 換成新版，再跑冒煙測試 | 新版沒上線、冒煙測試失敗（工作變紅） |
+| 每週一 | Dependabot 開相依套件更新 PR（Maven、npm、Actions、Docker） | —— |
+| 手動 | `ai-eval.yml`：用真的 Gemini 跑 30 題 AI 評估 | 通過率低於門檻（預設 80%） |
+
+自動部署需要在 GitHub 設定 secret `RENDER_DEPLOY_HOOK_URL`（Render 服務 → Settings → Deploy Hook）；沒設定時會略過、不影響 CI。
+
+### AI 評估集
+
+`後端/src/test/resources/ai-eval/` 有固定的行程清單（`catalog.json`）與 30 個問題（`cases.json`），分成主題比對、預算、天數、清單以外的目的地、提示詞注入、模糊需求六類。判分看資料庫的真實欄位（價格、天數、行程代號），不是請另一個 AI 評分，所以結果可重現。
+
+- 每次 PR 都跑 `AdvisorEvalHarnessTest`：檢查題目資料沒壞、每題都有解、判分規則正確，並用假模型跑完整流程。
+- 用真模型跑：`AI_EVAL=1 GEMINI_API_KEY=... mvn -Dtest=AdvisorLiveEvalTest test`，或到 GitHub Actions 手動執行「AI 評估」。報告在 `target/ai-eval/`。
+- 提示詞放在 `後端/src/main/resources/prompts/advisor-v1.txt`，每次呼叫模型都會寫入 `ai_log`（版本、模型、延遲、結果、被過濾的編造行程數），後台「AI 使用狀況」頁可以看；改提示詞就新增一個版本檔，兩版的數字可以並排比較。
+
 ---
 
 ## 雲端部署
