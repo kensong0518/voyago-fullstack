@@ -11,16 +11,16 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@stomp/stompjs": "^7.0.0",
-    "axios": "^1.7.2",
+    "@stomp/stompjs": "^7.5.0",
+    "axios": "^1.21.1",
     "pinia": "^2.1.7",
-    "vue": "^3.4.27",
+    "vue": "^3.5.45",
     "vue-router": "^4.3.2"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
     "@vue/test-utils": "^2.6.0",
-    "autoprefixer": "^10.4.19",
+    "autoprefixer": "^10.6.2",
     "eslint": "^9.39.5",
     "eslint-plugin-vue": "^9.33.0",
     "globals": "^17.14.0",
