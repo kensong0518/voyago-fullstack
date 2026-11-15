@@ -125,7 +125,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: docker build（根目錄 Dockerfile，context = repo 根目錄）
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
