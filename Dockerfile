@@ -6,7 +6,7 @@
 
 # ============ 前端 build stage ============
 # 正式環境的前端設定在 前端/.env.production（全是公開值），vite build 會自動讀取
-FROM node:20-alpine AS web
+FROM node:26-alpine AS web
 WORKDIR /web
 
 COPY 前端/package.json 前端/package-lock.json ./
