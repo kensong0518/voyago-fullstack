@@ -44,6 +44,15 @@ jobs:
             branch=$(awk -v m="$bm" -v c="$bc" 'BEGIN {printf "%.1f", c*100/(m+c)}')
             echo "行覆蓋率 ${line}%　分支覆蓋率 ${branch}%"
             { echo "### 後端測試覆蓋率"; echo "| | 覆蓋率 |"; echo "|---|---|"; echo "| 行 | ${line}% |"; echo "| 分支 | ${branch}% |"; } >> "$GITHUB_STEP_SUMMARY"
+            # 門檻設在目前數字（83.6%）下方一點：新功能沒補測試、覆蓋率掉到 80% 以下就擋下
+            MIN_LINE=80
+            if awk -v l="$line" -v m="$MIN_LINE" 'BEGIN {exit !(l < m)}'; then
+              echo "::error::行覆蓋率 ${line}% 低於門檻 ${MIN_LINE}%"
+              exit 1
+            fi
+          else
+            echo "::error::找不到 JaCoCo 報告"
+            exit 1
           fi
 
       - name: 上傳測試報告
